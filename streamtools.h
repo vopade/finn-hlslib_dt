@@ -49,6 +49,7 @@
 #define STREAMTOOLS_H
 
 #include "ap_axi_sdata.h"
+#include "hls_vector.h"
 
 /**
  * \brief   Stream limiter - limits the number of stream packets
@@ -414,6 +415,57 @@ void FMPadding_Batch(
 ) {
 	for (unsigned int rep = 0; rep < numReps; rep++) {
 		FMPadding<ImgDim, OutputDim, PaddingBefore, PaddingBehind, NumChannels, SIMD, In_t>(in, out);
+	}
+}
+
+/**
+ * \brief   Stream Data Width Converter - Converts the width of the input stream in the output stream
+ *
+ * Used to change number of elements in a vector inside a stream, without any loss of data in the procedure. 
+ *
+ * \tparam     NI      		Number of elements in input stream
+ * \tparam     NO      		Number of elements in output stream
+ * \tparam     NumInWords   Number of input words to process
+ *
+ * \param      in           Input stream
+ * \param      out          Output stream
+ * \param      numReps      Number of times the function has to be called
+ *
+ */
+template<
+	unsigned NumInWords,	
+	typename T,	
+	unsigned NI,
+	unsigned NO 
+>
+void StreamingDataWidthConverterVector_Batch(
+	hls::stream<hls::vector<T, NI>> & in,
+	hls::stream<hls::vector<T, NO>> & out, 
+	const unsigned numReps
+) {
+		constexpr unsigned outPerIn = NI / NO;
+		const unsigned totalIters = NumInWords * NI * numReps;
+		unsigned iCtr = 0; // input vector element counter
+		unsigned oCtr = 0; // output vector element counter
+		hls::vector<T, NI> vecIn;
+		hls::vector<T, NO> vecOut;
+
+		for (unsigned i = 0; i < totalIters; i++){
+			if(iCtr == 0){
+				vecIn = in.read();
+			}
+			// copy from input vector to output vector
+			vecOut[oCtr] = vecIn[iCtr]; 
+			iCtr++;
+			oCtr++;
+
+			if(oCtr == NO){ 
+				out.write(vecOut);  
+			}			
+
+			// reset counter if vector was read completely
+			iCtr = iCtr % NI;
+			oCtr = oCtr % NO;	
 	}
 }
 

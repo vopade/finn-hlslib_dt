@@ -29,7 +29,7 @@
  *  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  ******************************************************************************/
-
+#pragma once
 #include <hls_stream.h>
 using namespace hls;
 #include "ap_int.h"
@@ -38,52 +38,49 @@ using namespace hls;
 #include "activations.hpp"
 #include "weights.hpp"
 #include "interpret.hpp"
-
+#include "hls_vector.h"
 
 #define PE 4
-#define IFM_Channels 8
-#define OFM_Channels IFM_Channels
+#define IFM_CH 8 // IFM channels
+#define OFM_CH IFM_CH
 
-#define IFMDim 3
-#define OFMDim IFMDim
+#define IFM_DIM 3
+#define OFMDim IFM_DIM
 
-#define BIPO_PARAM_TYPE ap_uint<1>
-#define ADD_PARAM_TYPE ap_int<3> 
-#define MULT_PARAM_TYPE ap_int<3>
-#define BIPOLAR_INIT {{1,1},{1,0},{0,1},{1,1}}
+#define BIP_PDT ap_uint<1> // param type for BIP
+#define ADD_PDT ap_int<3> 
+#define MUL_PDT ap_int<3>
+#define BIP_INIT {{1,1},{1,0},{0,1},{1,1}}
 #define ADD_INIT {{ 2, 1},{ 0,-1},{-1,-3},{ 1, 1}} 
-#define MULT_INIT {{ 3, 1}, { 2,-1}, {-1, 1}, { 1,-2}} 
+#define MUL_INIT {{ 3, 1}, { 2,-1}, {-1, 1}, { 1,-2}} 
 
 #define INPUT_BITS 4
-#define BIPO_OUT_BITS  (INPUT_BITS+1)
-#define ADD_OUT_BITS  (BIPO_OUT_BITS+1)
-#define MULT_OUT_BITS  (ADD_OUT_BITS+3)
-#define OUTPUT_BITS MULT_OUT_BITS
+#define IDT ap_uint<INPUT_BITS>
+#define BIP_OUT_BITS  (INPUT_BITS+1)
+#define ADD_OUT_BITS  (BIP_OUT_BITS+1)
+#define MUL_OUT_BITS  (ADD_OUT_BITS+3)
+#define OUTPUT_BITS MUL_OUT_BITS
+#define ODT ap_int<OUTPUT_BITS>
 
 #define IN_T ap_uint
-#define BIPO_OUT_TYPE  ap_int<BIPO_OUT_BITS>
-#define ADD_OUT_TYPE  ap_int<ADD_OUT_BITS>
-#define MULT_OUT_TYPE  ap_int<MULT_OUT_BITS>
+#define BIP_ODT  ap_int<BIP_OUT_BITS>
+#define ADD_ODT  ap_int<ADD_OUT_BITS>
+#define MUL_ODT  ap_int<MUL_OUT_BITS>
 #define OUT_T ap_int
 
-#define FOLD (OFM_Channels/PE)
+#define FOLD (OFM_CH/PE)
 
-
-
-
-const int bipolar_init[PE][FOLD] = BIPOLAR_INIT;
+const int bipolar_init[PE][FOLD] = BIP_INIT;
 const int add_init[PE][FOLD] = ADD_INIT;
-const int mult_init[PE][FOLD] = MULT_INIT;
+const int mult_init[PE][FOLD] = MUL_INIT;
 
 template<typename T>
 struct per_channel_neg
 {
     constexpr T operator()(const ap_uint<1> &lhs, const T &rhs) const {
         return lhs? static_cast<decltype(-rhs)>(rhs):-rhs;
-    }
-    
+    } 
 };
 
-
-void Testbench_channelwise_op(stream<ap_uint<IFM_Channels*INPUT_BITS> > & in, 
-                    stream<ap_uint<OFM_Channels*OUTPUT_BITS> > & out, unsigned int numReps);
+void Testbench_channelwise_op(hls::stream<hls::vector<IDT,IFM_CH> > & in, 
+                     hls::stream<hls::vector<ODT,OFM_CH> > & out, unsigned int numReps);

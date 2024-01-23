@@ -64,10 +64,12 @@
 #define MAC_HPP
 
 #include "utils.hpp"
-
+#include "hls_vector.h"
+#include <typeinfo>
+#include "interpret_bipolar.hpp"
 
 /**
- * \brief      Multipliy operation between 2 operands, HLS choose the best resource
+ * \brief      Multiply operation between 2 operands, HLS choose the best resource
  * 
  * The same multiply operation can be implemented using multiple Vivado HLS pragmas to select the 
  * hardware resource to be used:

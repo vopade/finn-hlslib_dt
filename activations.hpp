@@ -285,7 +285,6 @@ void Thresholding_Batch(hls::stream<hls::vector<TI,PE>> &in,
 {
 #pragma HLS aggregate variable=out compact=bit
 #pragma HLS aggregate variable=in compact=bit
-
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
   constexpr unsigned  NF = NumChannels / PE;
@@ -296,18 +295,16 @@ void Thresholding_Batch(hls::stream<hls::vector<TI,PE>> &in,
 
   for (unsigned i = 0; i < reps * ImgDim * NF; i++) {
 #pragma HLS pipeline style=flp II=1
-
-    hls::vector<TI, PE> vecIn = in.read(); // this are #PE elemets
+    hls::vector<TI,PE> vecIn = in.read();
     hls::vector<TO,PE> vecOut;
-    for (unsigned pe = 0; pe < PE; pe++)
-    {
+
+    for (unsigned pe = 0; pe < PE; pe++){
 #pragma HLS UNROLL
       vecOut[pe] = activation.activate(nf, pe, vecIn[pe]);
     }
-
     out.write(vecOut);
-    if (++nf == NF)
-    {
+  
+    if (++nf == NF){
       nf = 0;
     }
   }
