@@ -50,6 +50,7 @@
 
 #include "ap_axi_sdata.h"
 #include "hls_vector.h"
+#include "utils.hpp"
 
 /**
  * \brief   Stream limiter - limits the number of stream packets
@@ -443,10 +444,12 @@ void StreamingDataWidthConverterVector_Batch(
 	hls::stream<hls::vector<T, NO>> & out, 
 	const unsigned numReps
 ) {
-		constexpr unsigned outPerIn = NI / NO;
+	  static_assert((NI % NO == 0) || (NO % NI == 0), "");
+
 		const unsigned totalIters = NumInWords * NI * numReps;
-		unsigned iCtr = 0; // input vector element counter
-		unsigned oCtr = 0; // output vector element counter
+
+		ap_uint<clog2(NI+1)> iCtr = 0; // input vector element counter. TODO: optimize "+1-bit" away by rearranging counters
+		ap_uint<clog2(NO+1)> oCtr = 0; // output vector element counter
 		hls::vector<T, NI> vecIn;
 		hls::vector<T, NO> vecOut;
 
@@ -464,8 +467,12 @@ void StreamingDataWidthConverterVector_Batch(
 			}			
 
 			// reset counter if vector was read completely
-			iCtr = iCtr % NI;
-			oCtr = oCtr % NO;	
+			if(iCtr == NI){
+				iCtr = 0;
+			}
+			if(oCtr == NO){
+				oCtr = 0;
+			}
 	}
 }
 

@@ -121,7 +121,9 @@ namespace comp{
     struct mul : public binary_function<input_type_1, input_type_2, result_type> {
       result_type
       operator()(const input_type_1& a, const input_type_2& b) const
-      { return a * b; }
+      { 
+        //std::cout << "normale mul, a=" << a << ", b=" << b << std::endl;
+        return a * b; }
     };
 
   template<typename input_type_1, typename input_type_2, typename result_type>

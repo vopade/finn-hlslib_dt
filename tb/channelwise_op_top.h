@@ -39,6 +39,7 @@ using namespace hls;
 #include "weights.hpp"
 #include "interpret.hpp"
 #include "hls_vector.h"
+#include "interpret_bipolar.hpp"
 
 #define PE 4
 #define IFM_CH 8 // IFM channels
@@ -47,25 +48,29 @@ using namespace hls;
 #define IFM_DIM 3
 #define OFMDim IFM_DIM
 
-#define BIP_PDT ap_uint<1> // param type for BIP
+//#define BIP_PDT ap_uint<1> // param type for BIP
+#define BIP_PDT Bipolar
 #define ADD_PDT ap_int<3> 
 #define MUL_PDT ap_int<3>
-#define BIP_INIT {{1,1},{1,0},{0,1},{1,1}}
-#define ADD_INIT {{ 2, 1},{ 0,-1},{-1,-3},{ 1, 1}} 
-#define MUL_INIT {{ 3, 1}, { 2,-1}, {-1, 1}, { 1,-2}} 
+#define BIP_INIT {{(Bipolar)1,(Bipolar)1},{(Bipolar)1,(Bipolar)0},{(Bipolar)0,(Bipolar)1},{(Bipolar)1,(Bipolar)1}}
+#define ADD_INIT {{2, 1},{ 0,-1},{-1,-3},{ 1, 1}} 
+#define MUL_INIT {{3, 1}, { 2,-1}, {-1, 1}, { 1,-2}} 
 
 #define INPUT_BITS 4
-#define IDT ap_uint<INPUT_BITS>
+//#define IDT ap_uint<INPUT_BITS>
+#define IDT Bipolar
 #define BIP_OUT_BITS  (INPUT_BITS+1)
 #define ADD_OUT_BITS  (BIP_OUT_BITS+1)
 #define MUL_OUT_BITS  (ADD_OUT_BITS+3)
 #define OUTPUT_BITS MUL_OUT_BITS
 #define ODT ap_int<OUTPUT_BITS>
 
-#define IN_T ap_uint
-#define BIP_ODT  ap_int<BIP_OUT_BITS>
-#define ADD_ODT  ap_int<ADD_OUT_BITS>
-#define MUL_ODT  ap_int<MUL_OUT_BITS>
+//#define IN_T ap_uint
+#define IN_T Bipolar
+//#define BIP_ODT ap_int<BIP_OUT_BITS>
+#define BIP_ODT Bipolar
+#define ADD_ODT ap_int<ADD_OUT_BITS>
+#define MUL_ODT ap_int<MUL_OUT_BITS>
 #define OUT_T ap_int
 
 #define FOLD (OFM_CH/PE)

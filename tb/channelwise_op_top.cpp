@@ -47,39 +47,43 @@
  void Testbench_channelwise_op(hls::stream<hls::vector<IDT,IFM_CH> > & in, 
                      hls::stream<hls::vector<ODT,OFM_CH> > & out, unsigned int numReps){
 #pragma HLS DATAFLOW
-     //with default size can result in deadlock. Please consider resizing the stream using the d
     // [width adapt] 
 
     stream<hls::vector<IDT,PE>>  wa_in;   
 #pragma HLS STREAM variable=wa_in depth=INPUT_BITS*PE
+#pragma HLS aggregate variable=wa_in compact=bit
     StreamingDataWidthConverterVector_Batch<IFM_DIM*IFM_DIM, IDT, IFM_CH, PE>(in, wa_in, numReps); 
     // [bipolar mult]
+    //ChannelWiseOperation<FOLD, PE, IDT, BIP_PDT, BIP_ODT, 
+    //    per_channel_neg<BIP_ODT> > bip_params= {.parameters = BIP_INIT};
     ChannelWiseOperation<FOLD, PE, IDT, BIP_PDT, BIP_ODT, 
-            per_channel_neg<BIP_ODT> > bip_params= {.parameters = BIP_INIT};
-
+        comp::mul<BIP_PDT, IDT, BIP_ODT> > bip_params= {.parameters = BIP_INIT};
+    
     hls::stream<hls::vector<BIP_ODT,PE>>  bip_out;
 #pragma HLS STREAM variable=bip_out depth=BIP_OUT_BITS*PE
+#pragma HLS aggregate variable=bip_out compact=bit
     Thresholding_Batch<IFM_DIM*IFM_DIM, IFM_CH, PE,IDT,BIP_ODT>
         (wa_in, bip_out, bip_params, numReps);
 
     // [add] 
     ChannelWiseOperation<FOLD, PE, BIP_ODT, ADD_PDT, ADD_ODT, 
-            comp::add<ADD_PDT, BIP_ODT, ADD_ODT> > add_params = {.parameters = ADD_INIT};
+        comp::add<ADD_PDT, BIP_ODT, ADD_ODT> > add_params = {.parameters = ADD_INIT};
 
     hls::stream<hls::vector<ADD_ODT,PE>> add_out;
 #pragma HLS STREAM variable=add_out depth=ADD_OUT_BITS*PE
+#pragma HLS aggregate variable=add_out compact=bit
     Thresholding_Batch<IFM_DIM*IFM_DIM, IFM_CH, PE, BIP_ODT, ADD_ODT>
         (bip_out, add_out, add_params, numReps);
-
     // [mult] 
     ChannelWiseOperation<FOLD, PE, ADD_ODT, MUL_PDT, MUL_ODT, 
-            comp::mul<MUL_PDT, ADD_ODT, MUL_ODT> > mult_params= {.parameters = MUL_INIT};
+        comp::mul<MUL_PDT, ADD_ODT, MUL_ODT> > mult_params= {.parameters = MUL_INIT};
 
     hls::stream<hls::vector<MUL_ODT,PE>> mul_out;
 #pragma HLS STREAM variable=mul_out depth=MUL_OUT_BITS*PE
+#pragma HLS aggregate variable=mul_out compact=bit
     Thresholding_Batch<IFM_DIM*IFM_DIM, IFM_CH, PE, ADD_ODT, MUL_ODT>
         (add_out, mul_out, mult_params, numReps);
-
+        
     // [width adapt]
     StreamingDataWidthConverterVector_Batch<IFM_DIM*IFM_DIM*FOLD, MUL_ODT, PE, OFM_CH>
         (mul_out, out, numReps);
