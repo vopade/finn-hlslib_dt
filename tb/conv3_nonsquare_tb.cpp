@@ -33,7 +33,7 @@
  *
  *  Authors: Giulio Gambardella <giuliog@xilinx.com>
  *
- *  \file conv3_tb.cpp
+ *  \file conv3_nonsquare_tb.cpp
  *
  *  Testbench for the convolution HLS block
  *
