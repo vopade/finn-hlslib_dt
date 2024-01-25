@@ -34,7 +34,7 @@
  *  Authors: Giulio Gambardella <giuliog@xilinx.com>,
  *           Timoteo Garcia Bertoa <timoteog@xilinx.com>
  *
- *  \file conv3_tb.cpp
+ *  \file conv3_stmr_inj_tb.cpp
  *
  *  Testbench for the HLS block which performs conv. using redundancy checks
  *

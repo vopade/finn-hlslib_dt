@@ -122,8 +122,11 @@ int main()
 			}
 		}
 	}
+
 	conv<MAX_IMAGES,IFMDim1,OFMDim1,IFM_Channels1,OFM_Channels1, KERNEL_DIM, 1, ap_uint<INPUT_PRECISION> >(IMAGE, W1, TEST);
+
 	Testbench_conv(input_stream, output_stream, MAX_IMAGES);
+
 	int err_counter = 0, err_perimage=0;
 	ap_int<ACTIVATION_PRECISION> out_chan;
 	for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
@@ -160,7 +163,6 @@ int main()
 	else{
 		return 1;
 	}
-
 }
 
 
