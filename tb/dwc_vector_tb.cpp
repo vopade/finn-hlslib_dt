@@ -31,7 +31,7 @@
  ******************************************************************************/
 /******************************************************************************
  *
- *  Authors: TODO
+ *  Authors: Jonas Kuhle <jonkuhle@amd.com>
  *
  *  \file dwc_vector_tb.cpp
  *
@@ -55,43 +55,43 @@
 using namespace hls;
 using namespace std;
 
-constexpr unsigned MAX_IMAGES = 1; // TODO: it is actually numReps
+constexpr unsigned MAX_IMAGES = 1;
 using T = ap_uint<8>; 
 constexpr unsigned NUM_WORDS_IN_TMP = 20;
-constexpr unsigned NI = 8; //8
-constexpr unsigned NO = 8; //4
+//constexpr unsigned NI = 8; // 8,8,4
+//constexpr unsigned NO = 8; // 8,4,8
 
-void Testbench_dwc_vector(hls::stream<hls::vector<T, NI>>& in ,hls::stream<hls::vector<T, NO>>& out, unsigned int numReps){
-	StreamingDataWidthConverterVector_Batch	<NUM_WORDS_IN_TMP, T, NI, NO> (in, out, numReps);
+void Testbench_dwc_vector(hls::stream<hls::vector<T, NI_>>& in ,hls::stream<hls::vector<T, NO_>>& out, unsigned int numReps){
+	StreamingDataWidthConverterVector_Batch	<NUM_WORDS_IN_TMP, T, NI_, NO_> (in, out, numReps);
 }
 
 int main()
 {
-	static_assert((NI % NO == 0) || (NO % NI == 0), "");
-	hls::stream<hls::vector<T, NI>> input_stream;
-	hls::stream<hls::vector<T, NO>> output_stream;
+	static_assert((NI_ % NO_ == 0) || (NO_ % NI_ == 0), "");
+	hls::stream<hls::vector<T, NI_>> input_stream;
+	hls::stream<hls::vector<T, NO_>> output_stream;
 	
-	constexpr unsigned numElementsOut = NI*NUM_WORDS_IN_TMP;
+	constexpr unsigned numElementsOut = NI_*NUM_WORDS_IN_TMP;
 	unsigned numVectorsOut = 0;
-	if (NI >= NO){
-		numVectorsOut = (NUM_WORDS_IN_TMP)*NI/NO;
+	if (NI_ >= NO_){
+		numVectorsOut = (NUM_WORDS_IN_TMP)*NI_/NO_;
 	}
 	else {
-		numVectorsOut = NUM_WORDS_IN_TMP/(NO/NI);
+		numVectorsOut = NUM_WORDS_IN_TMP/(NO_/NI_);
 	}
 
-	T expected[MAX_IMAGES*numElementsOut]; // grosses Array fuer die Verifikation
+	T expected[MAX_IMAGES*numElementsOut];
 
 	unsigned iVecCtr = 0;
 	for(int i = 0; i < NUM_WORDS_IN_TMP; i++){
-	// Inputstream generieren
-		hls::vector<T, NI> input;
-		for(int j = 0; j < NI; j++){
-			unsigned valIn = i*NI+j;
-			unsigned largestValue = (pow(2, NI));
+	// generate input stream
+		hls::vector<T, NI_> input;
+		for(int j = 0; j < NI_; j++){
+			unsigned valIn = i*NI_+j;
+			unsigned largestValue = (pow(2, NI_));
 			valIn %= largestValue; 
 			input[j] = valIn;
-			expected[i*NI+j] = valIn; // value does not change
+			expected[i*NI_+j] = valIn; 
 		}
 		input_stream.write(input);
 		iVecCtr++;
@@ -102,10 +102,10 @@ int main()
 	// verification
 	unsigned oVecCtr = 0;
 	for(int i = 0; i < numVectorsOut; i++){
-		hls::vector<T, NO> value = output_stream.read();
+		hls::vector<T, NO_> value = output_stream.read();
 		oVecCtr++;
-		for(int j = 0; j < NO; j++){
-			if (expected[i*NO+j] != value[j]){ // read sequentially
+		for(int j = 0; j < NO_; j++){
+			if (expected[i*NO_+j] != value[j]){ 
 				std::cerr << "ERROR! Expected: " << expected[i*j+j] << " is: " << value[j] << ", idx=: " << i*j+j << std::endl;
 				return 1;
 			}

@@ -31,22 +31,28 @@
 ###############################################################################
 ###############################################################################
  #
- #  Authors: Giulio Gambardella <giuliog@xilinx.com>
+ #  Authors: Jonas Kuhle <jonkuhle@amd.com>
  #
  # \file test_dwc.tcl
  #
  # Tcl script for HLS csim, synthesis and cosim of the datawidth converter block
  #
 ###############################################################################
-open_project hls-syn-dwc-vector
-add_files dwc_vector_tb.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb" 
-add_files -tb dwc_vector_tb.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb" 
-set_top Testbench_dwc_vector 
-#set_top main
-open_solution sol1
-set_part {xczu3eg-sbva484-1-i}
-create_clock -period 5 -name default
-csim_design
-csynth_design
-cosim_design
+
+set params {{8 8} {5 8} {8 4}}  
+
+foreach p $params {
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DNI_=[lindex $p 0] -DNO_=[lindex $p 1]"  
+    open_project hls-syn-dwc-vector
+    add_files dwc_vector_tb.cpp -cflags $compilerFlags
+    add_files -tb dwc_vector_tb.cpp -cflags $compilerFlags
+    set_top Testbench_dwc_vector 
+    #set_top main
+    open_solution sol1
+    set_part {xczu3eg-sbva484-1-i}
+    create_clock -period 5 -name default
+    csim_design
+    csynth_design
+    cosim_design
+}
 exit
