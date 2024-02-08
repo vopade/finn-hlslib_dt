@@ -39,10 +39,12 @@
  #
 ###############################################################################
 
-set params {{8 8} {5 8} {8 4}}  
+set params {{8 8} {4 8} {8 4}}  
 
 foreach p $params {
-    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DNI_=[lindex $p 0] -DNO_=[lindex $p 1]"  
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DNI_=[lindex $p 0] -DNO_=[lindex $p 1]"
+    # in case project already exists from an aborted previous run
+    delete_project hls-syn-dwc-vector 
     open_project hls-syn-dwc-vector
     add_files dwc_vector_tb.cpp -cflags $compilerFlags
     add_files -tb dwc_vector_tb.cpp -cflags $compilerFlags
@@ -54,5 +56,6 @@ foreach p $params {
     csim_design
     csynth_design
     cosim_design
+    delete_project hls-syn-dwc-vector
 }
 exit
