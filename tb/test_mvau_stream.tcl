@@ -32,6 +32,7 @@
 ###############################################################################
  #
  #  Authors: Giulio Gambardella <giuliog@xilinx.com>
+ #           Jonas Kuehle <jonkuhle@amd.com>
  #
  # \file test_conv3.tcl
  #
@@ -39,12 +40,16 @@
  #
 ###############################################################################
 
-# matrixH, matrixW, SIMD, PE
-#set params {{4 4 4 4} {16 32 32 16} {16 32 16 16} {16 32 1 1} {32 16 1 1} {16 32 2 2} {32 16 2 2} {16 32 8 4} {16 32 4 8} {16 32 2 2} {4 4 2 2} {4 4 2 4} {4 4 4 2} {4 4 4 4} }  
-set params {{4 4 2 2}}
+# matrixH, matrixW, SIMD, PE, IDT, WDT, ODT
+#set params {{16 32 32 16} {16 32 16 16} {16 32 1 1} {32 16 1 1} {16 32 2 2} {32 16 2 2} {16 32 8 4} {16 32 4 8} {16 32 2 2} {4 4 2 2} {4 4 2 4} {4 4 4 2} {4 4 4 4} }  
+set params {{32 32 16 16 ap_uint<9> ap_uint<9> ap_uint<16>}}
+#set params {{8 4 2 2 Bipolar Bipolar auto}}
+#set params {{4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 32 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 16 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 8 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 4 8 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'}}  
 
 foreach p $params {
-    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3]"
+    #set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3] -DIDTTCL='ap_uint<9>' -DWDTTCL=int -DODTTCL=int"
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3] -DIDTTCL=\"[lindex $p 4]\" -DWDTTCL=\"[lindex $p 5]\" -DODTTCL=\"[lindex $p 6]\""
+    #set compilerFlags "-E -std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3]"
     puts $compilerFlags
     # in case project already exists from an aborted previous run
     delete_project hls-syn-mvau-stream 
@@ -56,8 +61,8 @@ foreach p $params {
     set_part {xczu3eg-sbva484-1-i}
     create_clock -period 5 -name default
     csim_design
-    #csynth_design
-    #cosim_design
-    delete_project hls-syn-mvau-stream
+    csynth_design
+    cosim_design
+    #delete_project hls-syn-mvau-stream
 }
 exit

@@ -444,7 +444,7 @@ void StreamingDataWidthConverterVector_Batch(
 	hls::stream<hls::vector<T, NO>> & out, 
 	const unsigned numReps
 ) {
-	  static_assert((NI % NO == 0) || (NO % NI == 0), "");
+	    static_assert((NI % NO == 0) || (NO % NI == 0), "");
 
 		const unsigned totalIters = NumInWords * NI * numReps;
 

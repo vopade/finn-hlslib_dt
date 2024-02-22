@@ -31,7 +31,7 @@
  ******************************************************************************/
 /******************************************************************************
  *
- *  Authors: Jonas Kühle <jonkuhle@.com>
+ *  Authors: Jonas Kuehle <jonkuhle@amd.com>
  *
  *  \file conv_mvau_top.cpp
  *
@@ -40,21 +40,29 @@
  *****************************************************************************/
 #include "mvau_top.h"
 
-void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights, unsigned int numReps)
+void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights)
 {
-#pragma HLS DATAFLOW
+#pragma HLS interface AXIS port=in
+#pragma HLS interface AXIS port=weights
+#pragma HLS interface AXIS port=out
+#pragma HLS interface ap_ctrl_none port=return
+#pragma HLS aggregate variable=in compact=bit
+#pragma HLS aggregate variable=weights compact=bit
+#pragma HLS aggregate variable=out compact=bit
 
-    //StreamingDataWidthConverter_Batch<IFM_Channels1*INPUT_PRECISION, SIMD1*INPUT_PRECISION, InpPerImage>(in, wa_in, numReps);
+#pragma HLS dataflow disable_start_propagation
 
+//StreamingDataWidthConverter_Batch<IFM_Channels1*INPUT_PRECISION, SIMD1*INPUT_PRECISION, InpPerImage>(in, wa_in, numReps);
+//StreamingDataWidthConverterVector_Batch
 
 Matrix_Vector_Activate_Stream_Vector_Batch
 <
 MatrixW, MatrixH, SIMD, PE, WDT, IDT, ODT
 >
 (
-    in, out, weights, PassThroughActivation<ap_uint<16>>(), numReps
+    in, out, weights, 1
 );
 
-	//StreamingDataWidthConverter_Batch<PE1*ACTIVATION_PRECISION, OFM_Channels1*ACTIVATION_PRECISION, OFMDim1 * OFMDim1 * (OFM_Channels1 / PE1)>(mvOut, out, numReps);
+//StreamingDataWidthConverter_Batch<PE1*ACTIVATION_PRECISION, OFM_Channels1*ACTIVATION_PRECISION, OFMDim1 * OFMDim1 * (OFM_Channels1 / PE1)>(mvOut, out, numReps);
 
 }
