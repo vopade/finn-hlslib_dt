@@ -281,7 +281,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete
 
   constexpr unsigned MMV = 1;
-  //TO accu[MMV][PE];
   TO accu[MMV][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
   unsigned nf = 0;
@@ -298,7 +297,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
 
       if(nf == 0) {
         // read input from stream
-        //std::cout << "reading input stream, nf= "<< nf << std::endl;
         inElem = in.read();
         // store in appropriate buffer for reuse
         inputBuf[sf] = inElem;
@@ -314,29 +312,21 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
       // Threshold Initialisation
       if(sf == 0) {
         for(unsigned pe = 0; pe < PE; pe++) {
-  #pragma HLS UNROLL
+#pragma HLS UNROLL
           accu[0][pe] = 0;
         }
       }
 
       // iterates over one tile
       for(unsigned pe = 0; pe < PE; pe++) {
-          //auto const wgt = w[pe];
-        //TW wgt[SIMD] = w[pe]; 
-  #pragma HLS UNROLL
+#pragma HLS UNROLL
         for (unsigned mmv = 0; mmv < MMV; mmv++) {
           TO res = accu[mmv][pe]; 
-          //std::cout << "accu[mmv]["<< pe << "] read: " << accu[mmv][pe] << std::endl;
           for(int s = 0; s < SIMD; s++) { 
-            TO resForOutput = res;
-            //res += wgt * inputBuf[sf][s];
-            volatile auto t1 = w[s*PE+pe];
-            volatile auto t2 = inputBuf[sf][s];
-            res += w[s*PE+pe] * inputBuf[sf][s]; // weight inside tile,pe*SIMD+s
+            res += w[s*PE+pe] * inputBuf[sf][s]; // weight inside tile, pe*SIMD+s
           }
 
           accu[mmv][pe] = res;
-          //std::cout << res << " written " << accu[mmv][pe] << " to accu[mmv][" << pe << "]" << std::endl;
         }
       }
       // keep track of which folded synapse/neuron we are processing
@@ -344,7 +334,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
       hls::vector <TO, PE> vecOut;
       if(++sf == SF) {
         // produce output and clear accumulators
-        // auto  outElem = TDstI().template operator()<TO>();
         for (unsigned  pe = 0; pe < PE; pe++) {
   #pragma HLS UNROLL
           for (unsigned mmv = 0; mmv < MMV; mmv++) {
