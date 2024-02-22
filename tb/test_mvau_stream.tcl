@@ -42,7 +42,7 @@
 
 # matrixH, matrixW, SIMD, PE, IDT, WDT, ODT
 #set params {{16 32 32 16} {16 32 16 16} {16 32 1 1} {32 16 1 1} {16 32 2 2} {32 16 2 2} {16 32 8 4} {16 32 4 8} {16 32 2 2} {4 4 2 2} {4 4 2 4} {4 4 4 2} {4 4 4 4} }  
-set params {{32 32 16 16 ap_uint<9> ap_uint<9> ap_uint<16>}}
+set params {{16 16 4 4 ap_uint<9> ap_uint<9> ap_uint<16>}}
 #set params {{8 4 2 2 Bipolar Bipolar auto}}
 #set params {{4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 32 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 16 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 8 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 4 8 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'}}  
 

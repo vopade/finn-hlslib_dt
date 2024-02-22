@@ -42,6 +42,7 @@
 
 void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights)
 {
+
 #pragma HLS interface AXIS port=in
 #pragma HLS interface AXIS port=weights
 #pragma HLS interface AXIS port=out

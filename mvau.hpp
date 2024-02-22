@@ -165,7 +165,7 @@ void Matrix_Vector_Activate_Batch(
       auto const  wgt = w[pe];
 
       //std::array<TWeightI, 1> const wgt = w[pe]; 
-      std::cout << "wgt is of type: " << typeid(wgt).name() << std::endl;
+      //std::cout << "wgt is of type: " << typeid(wgt).name() << std::endl;
 
       for (unsigned mmv = 0; mmv < MMV; mmv++){
         //auto const  act = TSrcI()(inElem, mmv);
@@ -192,10 +192,10 @@ void Matrix_Vector_Activate_Batch(
         for (unsigned mmv = 0; mmv < MMV; mmv++){
 #pragma HLS UNROLL
           //outElem(pe,mmv,1) = activation.activate(nf, pe, accu[mmv][pe]);
-          std::cout << "accu[mmv][pe] before act: " << accu[mmv][pe];
+          //std::cout << "accu[mmv][pe] before act: " << accu[mmv][pe];
           //vecOut[pe] = activation.activate(nf, pe, accu[mmv][pe]); // raus. Aber wird noch benotigt. Warum?
           vecOut[pe] = accu[mmv][pe];
-          std::cout << ", after: " << vecOut[pe] << std::endl;
+          //std::cout << ", after: " << vecOut[pe] << std::endl;
           //vecOut[pe]++; // force wrong output for debugging
         }
       }
@@ -256,8 +256,6 @@ public:
  * \param reps        Number of time the function has to be repeatedly executed (e.g. number of images)
  */
 
-//#define DEBUG
-
 template<
   unsigned MatrixW, unsigned MatrixH, long unsigned SIMD, long unsigned PE,
   typename TW, typename TI, typename TO
@@ -285,7 +283,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
   constexpr unsigned MMV = 1;
   //TO accu[MMV][PE];
   TO accu[MMV][PE];
-  //decltype(activation.init(0,0))  accu[1][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
   unsigned nf = 0;
   unsigned sf = 0;
@@ -294,7 +291,7 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
   // everything merged into a common iteration space (one "big" loop instead
   // of smaller nested loops) to get the pipelinening the way we want
   unsigned const TOTAL_FOLD = NF * SF;
-  std::cout << "!!MatrixH:" << MatrixH << ", MatrixW:" << MatrixW << ", SIMD:" << SIMD << ", PE: " << PE << ", NF:" << NF << ", SF:" << SF <<", mmv: " << MMV << ", TI: " << typeid(TI).name() << ", TW: " << typeid(TW).name() << std::endl;
+  //std::cout << "!!MatrixH:" << MatrixH << ", MatrixW:" << MatrixW << ", SIMD:" << SIMD << ", PE: " << PE << ", NF:" << NF << ", SF:" << SF <<", mmv: " << MMV << ", TI: " << typeid(TI).name() << ", TW: " << typeid(TW).name() << std::endl;
   for(unsigned  i = 0; i < reps; i++) {
     for(unsigned  tile = 0; tile < TOTAL_FOLD; tile++) {
       hls::vector<TI, SIMD> inElem;
@@ -305,28 +302,14 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
         inElem = in.read();
         // store in appropriate buffer for reuse
         inputBuf[sf] = inElem;
-  #ifdef DEBUG
-        std::cout << std::endl << "read from input stream ";
-        for(int k = 0; k < SIMD; k++)
-          std::cout << inElem[k] << ",";
-  #endif
       }
       else {
         // reuse buffered input
         inElem = inputBuf[sf];
-  #ifdef DEBUG
-        std::cout << std::endl << "read from buffer ";
-        for(int k = 0; k < SIMD; k++)
-          std::cout << inElem[k] << ",";
-  #endif
       }
 
       decltype(weights[tile]) w;
-  #ifdef DEBUG
-      std::cout << "reading from weight stream: ";
-  #endif
       w = weights[tile];
-
 
       // Threshold Initialisation
       if(sf == 0) {
@@ -350,9 +333,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
             volatile auto t1 = w[s*PE+pe];
             volatile auto t2 = inputBuf[sf][s];
             res += w[s*PE+pe] * inputBuf[sf][s]; // weight inside tile,pe*SIMD+s
-  //#ifdef DEBUG
-            std::cout << "MVAU pe=" << pe << ": " << w[s*PE+pe] << "*" << inputBuf[sf][s] << "+" << resForOutput << "=" << res  << " (w["<< s*PE+pe << "]), " <<  w[s*PE+pe] << "*" << inputBuf[sf][s]  << "=" << w[s*PE+pe] * inputBuf[sf][s] << std::endl;
-  //#endif
           }
 
           accu[mmv][pe] = res;
@@ -370,10 +350,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
           for (unsigned mmv = 0; mmv < MMV; mmv++) {
   #pragma HLS UNROLL
             vecOut[pe] = accu[mmv][pe];
-  //#ifdef DEBUG
-            std::cout << " written to outputstream: accu[mmv][" << pe << "]: " << vecOut[pe] <<  std::endl;
-  //#endif
-            //vecOut[pe]++; // force wrong output for debugging
           }
         }
 

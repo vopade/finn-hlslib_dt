@@ -41,51 +41,40 @@ using namespace hls;
 #include "hls_vector.h"
 #include "interpret_bipolar.hpp"
 
-#define PE 4
-#define IFM_CH 8 // IFM channels
-#define OFM_CH IFM_CH
+constexpr int PE = 4;
+constexpr int IFM_CH = 8;
+constexpr int OFM_CH = IFM_CH;
+constexpr int FOLD = (OFM_CH/PE);
+constexpr int IFM_DIM = 3;
+constexpr int OFMDim = IFM_DIM;
 
-#define IFM_DIM 3
-#define OFMDim IFM_DIM
+constexpr int INPUT_BITS = 4;
+constexpr int BIP_OUT_BITS = INPUT_BITS+1;
+constexpr int ADD_OUT_BITS = BIP_OUT_BITS+1;
+constexpr int MUL_OUT_BITS = ADD_OUT_BITS+3;
+constexpr int OUTPUT_BITS = MUL_OUT_BITS;
 
-//#define BIP_PDT ap_uint<1> // param type for BIP
-#define BIP_PDT Bipolar
-#define ADD_PDT ap_int<3> 
-#define MUL_PDT ap_int<3>
-#define BIP_INIT {{(Bipolar)1,(Bipolar)1},{(Bipolar)1,(Bipolar)0},{(Bipolar)0,(Bipolar)1},{(Bipolar)1,(Bipolar)1}}
+using IDT = Bipolar;
+using BIP_PDT = Bipolar;
+using ADD_PDT = ap_int<3>;
+using MUL_PDT = ap_int<3>;
+using BIP_ODT = Bipolar;
+using ADD_ODT = ap_int<ADD_OUT_BITS>;
+using MUL_ODT = ap_int<MUL_OUT_BITS>;
+using ODT = ap_int<OUTPUT_BITS>;
+
+//constexpr int BIP_INIT[PE][FOLD] = {{(Bipolar)1,(Bipolar)1},{(Bipolar)1,(Bipolar)0},{(Bipolar)0,(Bipolar)1},{(Bipolar)1,(Bipolar)1}};
+//constexpr BIP_PDT BIP_INIT[PE][FOLD] = {{1,1},{1,0},{0,1},{1,1}};
+//constexpr int ADD_INIT[PE][FOLD] = {{2, 1},{0, -1},{-1, -3},{1, 1}};  
+//constexpr MUL_PDT MUL_INIT[PE][FOLD] = {{3, 1}, { 2,-1}, {-1, 1}, { 1,-2}};
+#define BIP_INIT {{1,1},{1,0},{0,1},{1,1}}
 #define ADD_INIT {{2, 1},{ 0,-1},{-1,-3},{ 1, 1}} 
 #define MUL_INIT {{3, 1}, { 2,-1}, {-1, 1}, { 1,-2}} 
 
-#define INPUT_BITS 4
-//#define IDT ap_uint<INPUT_BITS>
-#define IDT Bipolar
-#define BIP_OUT_BITS  (INPUT_BITS+1)
-#define ADD_OUT_BITS  (BIP_OUT_BITS+1)
-#define MUL_OUT_BITS  (ADD_OUT_BITS+3)
-#define OUTPUT_BITS MUL_OUT_BITS
-#define ODT ap_int<OUTPUT_BITS>
-
-//#define IN_T ap_uint
-#define IN_T Bipolar
-//#define BIP_ODT ap_int<BIP_OUT_BITS>
-#define BIP_ODT Bipolar
-#define ADD_ODT ap_int<ADD_OUT_BITS>
-#define MUL_ODT ap_int<MUL_OUT_BITS>
-#define OUT_T ap_int
-
-#define FOLD (OFM_CH/PE)
-
-const int bipolar_init[PE][FOLD] = BIP_INIT;
-const int add_init[PE][FOLD] = ADD_INIT;
-const int mult_init[PE][FOLD] = MUL_INIT;
-
-template<typename T>
-struct per_channel_neg
-{
-    constexpr T operator()(const ap_uint<1> &lhs, const T &rhs) const {
-        return lhs? static_cast<decltype(-rhs)>(rhs):-rhs;
-    } 
-};
+const BIP_PDT bip_init[PE][FOLD] = BIP_INIT;
+//const int add_init[PE][FOLD] = ADD_INIT;
+const ADD_PDT add_init[PE][FOLD] = ADD_INIT;
+const MUL_PDT mul_init[PE][FOLD] = MUL_INIT;
 
 void Testbench_channelwise_op(hls::stream<hls::vector<IDT,IFM_CH> > & in, 
                      hls::stream<hls::vector<ODT,OFM_CH> > & out, unsigned int numReps);

@@ -125,9 +125,6 @@ int main()
         }
     }
 
-	// generate dummy weight streams for L2, L3
-	
-
 	
 	Testbench_mvau(input_stream, output_stream, weight_stream);
 	//std::cout << "Testbench_mvau done" << std::endl;

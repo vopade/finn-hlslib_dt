@@ -79,8 +79,7 @@ int main()
                     for(unsigned int channel = 0; channel < IFM_CH; channel++)
                     {   
                         // generate new value casted to the input type
-                        //IN_T<INPUT_BITS> input = (IN_T<INPUT_BITS>)(rand()%100);
-                        IN_T input = 0; //channel % 2;
+                        IDT input = Bipolar(channel % 2);
 
                         // store value in image for verification function
                         IMAGE[round_idx][n_image][ox][oy][channel]= input;
@@ -113,18 +112,18 @@ int main()
 
                         int expected_out = IMAGE[round_idx][n_image][ox][oy][channel];
                         //expected_out = bipolar_init[pe_idx][f_idx]? expected_out:-expected_out;
-                        expected_out = (Bipolar)!(expected_out ^ bipolar_init[pe_idx][f_idx]); // don't use bitwise NOT since ~1=-2 for ints
+                        expected_out = (Bipolar)!(expected_out ^ bip_init[pe_idx][f_idx]); // don't use bitwise NOT since ~1=-2 for ints
                         expected_out += add_init[pe_idx][f_idx];
-                        expected_out *= mult_init[pe_idx][f_idx];
+                        expected_out *= mul_init[pe_idx][f_idx];
 
                         int produced_out = outElem[channel];
                         if (expected_out != produced_out){
                             std::cout << "ERROR: In round"<<round_idx<<", Expected["<<oy <<"]["<<ox<<"]["<<channel<<"]=" 
                             << expected_out << " actual " <<  produced_out <<
                             " | input value:"<<IMAGE[round_idx][n_image][ox][oy][channel] <<
-                            " | Params - >  bip: "<<bipolar_init[pe_idx][f_idx]<< 
+                            " | Params - >  bip: "<<bip_init[pe_idx][f_idx]<< 
                             " | add: "<<add_init[pe_idx][f_idx]<< 
-                            " | mul: "<<mult_init[pe_idx][f_idx]<< 
+                            " | mul: "<<mul_init[pe_idx][f_idx]<< 
                             std::endl;
                             err_counter ++;
                             err_perimage++;
