@@ -209,7 +209,7 @@ void Matrix_Vector_Activate_Batch(
     }
   }
 }
-
+/*
 template<typename TW, long unsigned N>
 class WeightsDecoupled{
   hls::stream<hls::vector<TW, N>> &weights;
@@ -232,8 +232,8 @@ public:
   hls::vector<TW, N> operator[](unsigned tile) const {
     return weights[tile];
   }
-}; // class WeightsConst
-
+}; 
+*/
 
 /**
  * \brief Matrix vector activate function with streaming weights
@@ -263,7 +263,8 @@ template<
 void Matrix_Vector_Activate_Stream_Vector_Batch(
   hls::stream<hls::vector<TI, SIMD>> &in, 
   hls::stream<hls::vector<TO, PE>> &out,
-  TW const & weights,
+  //TW const & weights, // ##MOD
+  hls::stream<hls::vector<TW, PE*SIMD>> &weights, // ##MOD
   int const  reps
 ) {
 #pragma HLS pipeline II=1 style=flp
@@ -306,8 +307,9 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
         inElem = inputBuf[sf];
       }
 
-      decltype(weights[tile]) w;
-      w = weights[tile];
+      //decltype(weights[tile]) w;  // ##MOD
+      //w = weights[tile];  // ##MOD
+      hls::vector<TW, SIMD*PE> w = weights.read();  // ##MOD
 
       // Threshold Initialisation
       if(sf == 0) {
@@ -353,7 +355,7 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
     }
   }
 }
-
+/*
 template<
   unsigned MatrixW, unsigned MatrixH, long unsigned SIMD, long unsigned PE,
   typename TW, typename TI, typename TO
@@ -367,5 +369,5 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
 #pragma HLS inline
   Matrix_Vector_Activate_Stream_Vector_Batch<MatrixW, MatrixH>(in, out, WeightsDecoupled<TW, SIMD*PE>(weights), reps);
 }
-
+*/
 #endif
