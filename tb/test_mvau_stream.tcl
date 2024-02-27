@@ -42,13 +42,13 @@
 
 # matrixH, matrixW, SIMD, PE, IDT, WDT, ODT
 #set params {{16 32 32 16} {16 32 16 16} {16 32 1 1} {32 16 1 1} {16 32 2 2} {32 16 2 2} {16 32 8 4} {16 32 4 8} {16 32 2 2} {4 4 2 2} {4 4 2 4} {4 4 4 2} {4 4 4 4} }  
-set params {{16 16 4 4 ap_uint<9> ap_uint<9> ap_uint<16>}}
-#set params {{8 4 2 2 Bipolar Bipolar auto}}
+# 16 32 1 1 freezes in synth step
+set params {{8 8 2 2 Bipolar Bipolar auto}}
 #set params {{4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 32 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 16 16 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 1 1 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {32 16 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 8 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 4 8 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {16 32 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 2 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 2 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'} {4 4 4 4 'ap_uint<9>' 'ap_uint<9>' 'ap_uint<16>'}}  
 
 foreach p $params {
     #set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3] -DIDTTCL='ap_uint<9>' -DWDTTCL=int -DODTTCL=int"
-    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3] -DIDTTCL=\"[lindex $p 4]\" -DWDTTCL=\"[lindex $p 5]\" -DODTTCL=\"[lindex $p 6]\""
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DDECOUPLED_MODE -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3] -DIDTTCL=\"[lindex $p 4]\" -DWDTTCL=\"[lindex $p 5]\" -DODTTCL=\"[lindex $p 6]\""
     #set compilerFlags "-E -std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DMATRIXH_=[lindex $p 0] -DMATRIXW_=[lindex $p 1] -DSIMD_=[lindex $p 2] -DPE_=[lindex $p 3]"
     puts $compilerFlags
     # in case project already exists from an aborted previous run
@@ -59,7 +59,7 @@ foreach p $params {
     set_top Testbench_mvau
     open_solution sol1
     set_part {xczu3eg-sbva484-1-i}
-    create_clock -period 5 -name default
+    create_clock -period 10 -name default
     csim_design
     csynth_design
     cosim_design

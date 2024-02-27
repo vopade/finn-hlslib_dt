@@ -40,9 +40,20 @@
  *****************************************************************************/
 #include "mvau_top.h"
 
-void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights)
-{
 
+
+template
+<unsigned N, typename T>
+void move(hls::stream<T> & src, hls::stream<T> & dst) {
+    for(int i = 0; i < N; i++) {
+#pragma HLS pipeline II=1 style=flp
+    	std::cout << i << ", " << src.empty() << std::endl;
+        dst.write(src.read());
+    }
+}
+
+#ifdef DECOUPLED_MODE
+void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights) {
 #pragma HLS interface AXIS port=in
 #pragma HLS interface AXIS port=weights
 #pragma HLS interface AXIS port=out
@@ -50,20 +61,49 @@ void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::v
 #pragma HLS aggregate variable=in compact=bit
 #pragma HLS aggregate variable=weights compact=bit
 #pragma HLS aggregate variable=out compact=bit
-
 #pragma HLS dataflow disable_start_propagation
 
-//StreamingDataWidthConverter_Batch<IFM_Channels1*INPUT_PRECISION, SIMD1*INPUT_PRECISION, InpPerImage>(in, wa_in, numReps);
-//StreamingDataWidthConverterVector_Batch
+    static hls::stream<hls::vector<IDT, SIMD>> in_0("in_0");
+    static hls::stream<hls::vector<ODT, PE>> out_0("out_0");
+    static hls::stream<hls::vector<WDT, SIMD*PE>> weights_0("weights_0");
+    move<MatrixW/SIMD>(in, in_0);
+    move<(MatrixH / PE) * (MatrixW / SIMD)>(weights, weights_0);
 
-Matrix_Vector_Activate_Stream_Vector_Batch
-<
-MatrixW, MatrixH, SIMD, PE, WDT, IDT, ODT
->
-(
-    in, out, weights, 1
-);
+    Matrix_Vector_Activate_Stream_Vector_Batch
+    <
+    MatrixW, MatrixH, SIMD, PE, WDT, IDT, ODT
+    >
+    (
+        in_0, out_0, weights_0, 1
+    );
 
-//StreamingDataWidthConverter_Batch<PE1*ACTIVATION_PRECISION, OFM_Channels1*ACTIVATION_PRECISION, OFMDim1 * OFMDim1 * (OFM_Channels1 / PE1)>(mvOut, out, numReps);
-
+    move<MatrixH/PE>(out_0, out);
 }
+#endif
+
+#ifdef CONST_MODE
+void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::vector<WDT, SIMD*PE> const (&weights)[NUMTILES]) {
+#pragma HLS interface AXIS port=in
+#pragma HLS interface mode=ap_none port=weights 
+#pragma HLS interface AXIS port=out
+#pragma HLS interface ap_ctrl_none port=return
+#pragma HLS aggregate variable=in compact=bit
+//#pragma HLS aggregate variable=weights compact=bit
+#pragma HLS aggregate variable=out compact=bit
+#pragma HLS dataflow disable_start_propagation
+
+    static hls::stream<hls::vector<IDT, SIMD>> in_0("in_0");
+    static hls::stream<hls::vector<ODT, PE>> out_0("out_0");
+    move<MatrixW/SIMD>(in, in_0);
+    
+    Matrix_Vector_Activate_Stream_Vector_Batch
+    <
+    MatrixW, MatrixH, SIMD, PE, NUMTILES, WDT, IDT, ODT
+    >
+    (
+        in_0, out_0, weights, 1
+    );
+
+    move<MatrixH/PE>(out_0, out);
+}
+#endif

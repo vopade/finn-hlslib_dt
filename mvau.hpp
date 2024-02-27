@@ -209,31 +209,6 @@ void Matrix_Vector_Activate_Batch(
     }
   }
 }
-/*
-template<typename TW, long unsigned N>
-class WeightsDecoupled{
-  hls::stream<hls::vector<TW, N>> &weights;
-
-public:
-  WeightsDecoupled(hls::stream<hls::vector<TW, N>> &weights_) : weights(weights_) {}
-  ~WeightsDecoupled(){}
-
-public:
-  hls::vector<TW, N> operator[](unsigned tile) const {
-    return weights.read();
-  }
-}; // class WeightsDecoupled
-
-template<typename TW, long unsigned N, unsigned TILES>
-class WeightsConst{
-public:
-  hls::vector<TW, N> weights[TILES];
-public:
-  hls::vector<TW, N> operator[](unsigned tile) const {
-    return weights[tile];
-  }
-}; 
-*/
 
 /**
  * \brief Matrix vector activate function with streaming weights
@@ -263,12 +238,9 @@ template<
 void Matrix_Vector_Activate_Stream_Vector_Batch(
   hls::stream<hls::vector<TI, SIMD>> &in, 
   hls::stream<hls::vector<TO, PE>> &out,
-  //TW const & weights, // ##MOD
-  hls::stream<hls::vector<TW, PE*SIMD>> &weights, // ##MOD
+  TW && weights, 
   int const  reps
 ) {
-#pragma HLS pipeline II=1 style=flp
-
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
   unsigned const NF = MatrixH / PE;
@@ -294,8 +266,8 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
   //std::cout << "!!MatrixH:" << MatrixH << ", MatrixW:" << MatrixW << ", SIMD:" << SIMD << ", PE: " << PE << ", NF:" << NF << ", SF:" << SF <<", mmv: " << MMV << ", TI: " << typeid(TI).name() << ", TW: " << typeid(TW).name() << std::endl;
   for(unsigned  i = 0; i < reps; i++) {
     for(unsigned  tile = 0; tile < TOTAL_FOLD; tile++) {
+#pragma HLS pipeline II=1 style=flp
       hls::vector<TI, SIMD> inElem;
-
       if(nf == 0) {
         // read input from stream
         inElem = in.read();
@@ -307,11 +279,8 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
         inElem = inputBuf[sf];
       }
 
-      //decltype(weights[tile]) w;  // ##MOD
-      //w = weights[tile];  // ##MOD
-      hls::vector<TW, SIMD*PE> w = weights.read();  // ##MOD
+      auto w = weights(tile); 
 
-      // Threshold Initialisation
       if(sf == 0) {
         for(unsigned pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
@@ -325,9 +294,8 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
         for (unsigned mmv = 0; mmv < MMV; mmv++) {
           TO res = accu[mmv][pe]; 
           for(int s = 0; s < SIMD; s++) { 
-            res += w[s*PE+pe] * inputBuf[sf][s]; // weight inside tile, pe*SIMD+s
+            res += w[s*PE+pe] * inputBuf[sf][s]; 
           }
-
           accu[mmv][pe] = res;
         }
       }
@@ -337,9 +305,7 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
       if(++sf == SF) {
         // produce output and clear accumulators
         for (unsigned  pe = 0; pe < PE; pe++) {
-  #pragma HLS UNROLL
           for (unsigned mmv = 0; mmv < MMV; mmv++) {
-  #pragma HLS UNROLL
             vecOut[pe] = accu[mmv][pe];
           }
         }
@@ -355,7 +321,7 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
     }
   }
 }
-/*
+
 template<
   unsigned MatrixW, unsigned MatrixH, long unsigned SIMD, long unsigned PE,
   typename TW, typename TI, typename TO
@@ -363,11 +329,24 @@ template<
 void Matrix_Vector_Activate_Stream_Vector_Batch(
   hls::stream<hls::vector<TI, SIMD>> &in, 
   hls::stream<hls::vector<TO, PE>> &out,
-  hls::stream<hls::vector<TW, SIMD*PE>> &weights,
+  hls::stream<hls::vector<TW, PE*SIMD>> &weights,
   int const  reps
 ) {
 #pragma HLS inline
-  Matrix_Vector_Activate_Stream_Vector_Batch<MatrixW, MatrixH>(in, out, WeightsDecoupled<TW, SIMD*PE>(weights), reps);
+  Matrix_Vector_Activate_Stream_Vector_Batch<MatrixW, MatrixH>(in, out, [&weights](unsigned){return weights.read();}, reps);
 }
-*/
+template<
+  unsigned MatrixW, unsigned MatrixH, long unsigned SIMD, long unsigned PE, unsigned TILES,
+  typename TW, typename TI, typename TO
+>
+void Matrix_Vector_Activate_Stream_Vector_Batch(
+  hls::stream<hls::vector<TI, SIMD>> &in, 
+  hls::stream<hls::vector<TO, PE>> &out,
+  hls::vector<TW, PE*SIMD> const (&weights)[TILES], 
+  int const  reps
+) {
+#pragma HLS inline
+  Matrix_Vector_Activate_Stream_Vector_Batch<MatrixW, MatrixH>(in, out, [&weights](unsigned tile){return weights[tile];}, reps);
+}
+
 #endif

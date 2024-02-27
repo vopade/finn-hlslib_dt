@@ -41,7 +41,6 @@
 
 #include "mvau_top.h"
 
-
 using namespace hls;
 using namespace std;
 
@@ -85,7 +84,7 @@ int main()
 		for(unsigned int j = 0; j < SIMD; j++)
 		{
 			//IDT input = (counter+1)%2;
-			IDT input = rand()%2;
+			IDT input = i;//rand()%2;
 			IMAGE[i*(SIMD)+j]= input;
 			//std::cout << "input=" << input << ", counter=" << (counter+1)%2 << std::endl;
 			vecIn[j] = input;
@@ -96,13 +95,14 @@ int main()
 
 	// weights
 	static WDT WEIGHTS[MatrixH*MatrixW];
+	hls::vector<WDT, SIMD*PE> weightsConst[NUMTILES];
 
 	// generate weights
 	//std::cout << "weights: " << std::endl;
 	for(int i = 0; i < MatrixW; i++) {
 		for(int j = 0; j < MatrixH; j++) {
 			//WEIGHTS[i*MatrixH+j] = (i*MatrixH+j);
-			WEIGHTS[i*MatrixH+j] = rand()%2;
+			WEIGHTS[i*MatrixH+j] = (i*MatrixH+j);//rand()%2;
 			//std::cout << i*MatrixH+j << ", ";
 		}
 	}
@@ -115,20 +115,28 @@ int main()
 	for (int tx = 0; tx < TX; tx++) {
         for (int ty = 0; ty < TY; ty++) {
             unsigned weightsIndices[PE*SIMD];
-            getWeightsIndex(weightsIndices, ty * TX + tx, MatrixH, SIMD, PE);
-            hls::vector<WDT, PE*SIMD> weigthsVecIn;
+            getWeightsIndex(weightsIndices, ty * TX + tx, MatrixH, SIMD, PE); // TODO: rename getWeightsIndex or add return 
+            hls::vector<WDT, PE*SIMD> weightsVecIn;
 			for(int i = 0; i < PE*SIMD; i++) {
-				weigthsVecIn[i] = WEIGHTS[weightsIndices[i]]; // get weight at index
+#ifdef DECOUPLED_MODE
+				weightsVecIn[i] = WEIGHTS[weightsIndices[i]]; // get weight at index
+#endif
 				//std::cout << "TB: wrote weight " << WEIGHTS[weightsIndices[i]] << " to stream, index is: " << weightsIndices[i] << std::endl;
+#ifdef CONST_MODE
+				weightsConst[tx*TY+ty][i] = WEIGHTS[weightsIndices[i]];
+#endif
 			}
-			weight_stream.write(weigthsVecIn);
+#ifdef DECOUPLED_MODE
+			weight_stream.write(weightsVecIn);
+#endif
         }
     }
-
-	
+#ifdef DECOUPLED_MODE
 	Testbench_mvau(input_stream, output_stream, weight_stream);
-	//std::cout << "Testbench_mvau done" << std::endl;
-
+#endif
+#ifdef CONST_MODE
+	Testbench_mvau(input_stream, output_stream, weightsConst);
+#endif
 	// initialization
 	for(int i = 0; i < MatrixH; ++i) {
 		EXPECTED[i]=0;
@@ -142,29 +150,6 @@ int main()
 		}
 	}
 
-	// temp outputs
-	/*
-	std::cout << "IMAGE: " << std::endl;
-	for(int i = 0; i < MatrixW; i++) {
-		std::cout << IMAGE[i] << " ";
-	}
-
-	std::cout << std::endl << "WEIGHTS:";
-	for(int i = 0; i < MatrixW; i++) {
-		std::cout << std::endl;
-		for(int j = 0; j < MatrixH; j++) {
-			std::cout << WEIGHTS[i*MatrixH+j] << ",";
-		}
-	}
-	std::cout << std::endl;
-	
-	std::cout << std::endl;
-	std::cout << "EXPECTED:" << std::endl;
-	for (int i=0;i<MatrixH;i++) {
-		std::cout << EXPECTED[i] << ",";
-	}	
-	std::cout << std::endl;
-*/
 	std::cout << "PRODUCED:" << std::endl;
 	for (int i=0;i<MatrixH/PE;i++) {
 		hls::vector<ODT, PE> prod = output_stream.read();
@@ -191,7 +176,7 @@ int main()
 	}
 	else
 	{
-		std::cout << "Test passes with success" << std::endl;
+		std::cout << "Test passes successfully" << std::endl;
 		std::cout <<std::endl << std::endl << std::endl << std::endl;
 		return 0;
 	}

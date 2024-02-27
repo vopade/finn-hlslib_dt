@@ -23,7 +23,7 @@
 
 template<unsigned  DEPTH>
 class BipolarAccu {
-    ap_uint<clog2(DEPTH+1)>  val; // number of +1s
+    ap_uint<clog2(DEPTH+1)>  val; //
 
 public:
     BipolarAccu() : val(0) {}
@@ -48,6 +48,7 @@ constexpr unsigned MatrixW = MATRIXW_; // #input size, since weights matrix is t
 constexpr unsigned SIMD = SIMD_;
 constexpr unsigned PE = PE_;
 constexpr unsigned numReps = 1;
+constexpr unsigned NUMTILES = (MatrixH / PE) * (MatrixW / SIMD);
 
 using IDT = ap_uint<5>;
 using WDT = ap_uint<5>;
@@ -61,5 +62,12 @@ using ODT = ap_uint<8>;
 //using WDT = WDTTCL;
 //using ODT = ODTTCL;
 
-void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights);
+#ifdef DECOUPLED_MODE
+void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::stream<hls::vector<WDT, SIMD*PE>> & weights); // ###
+#endif
+
+#ifdef CONST_MODE
+void Testbench_mvau(hls::stream<hls::vector<IDT, SIMD>> & in, hls::stream<hls::vector<ODT, PE>> & out, hls::vector<WDT, SIMD*PE> const (&weights)[NUMTILES]);
+#endif
+
 #endif
