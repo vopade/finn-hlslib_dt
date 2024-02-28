@@ -59,15 +59,8 @@
 #include "weights.hpp"
 #include "interpret_bipolar.hpp"
 
-
-/**
- * \brief Matrix vector activate function
- *
- * The function performs the multiplication between a weigth matrix and the input activation vector,
- * accumulating the results and then applying an activation function on the accumulated result.
- *
- * TODO: update
- * \tparam MatrixW    Width of the input matrix
+/*
+\tparam MatrixW    Width of the input matrix
  * \tparam MatrixH    Heigth of the input matrix
  * \tparam SIMD       Number of input columns computed in parallel
  * \tparam PE         Number of output rows computed in parallel
@@ -89,14 +82,14 @@
  * \param r           Resource type for the hardware implementation of the MAC block
  */
 template<
-  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE, unsigned MMV,
-  typename TI, typename TO, typename TWeightI, typename TW, typename R
+  unsigned MatrixW, unsigned MatrixH, unsigned SIMD, unsigned PE, unsigned MMV, 
+  typename TSrcI = Identity, typename TDstI = Identity, typename TWeightI = Identity,
+  typename TI, typename TO, typename TW, typename TA, typename R
 >
-void Matrix_Vector_Activate_Batch(
-          hls::stream<hls::vector<TI, SIMD>> &in, 
-				  hls::stream<hls::vector<TO, PE>> &out, 
-				  const hls::vector<TW, MatrixH*MatrixW> &weights,
-          //const &weights,
+void Matrix_Vector_Activate_Batch(hls::stream<TI> &in,
+				  hls::stream<TO> &out,
+				  TW  const &weights,
+				  TA  const &activation,
 				  int const  reps,
 				  R const &r) {
 
@@ -109,13 +102,11 @@ void Matrix_Vector_Activate_Batch(
   unsigned const  SF = MatrixW / SIMD;
 
   // input vector buffers
-  hls::vector<TI, SIMD>  inputBuf[SF];
+  TI  inputBuf[SF];
 #pragma HLS ARRAY_PARTITION variable=inputBuf complete dim=0
-#pragma HLS aggregate variable=out compact=bit
-#pragma HLS aggregate variable=in compact=bit
 
-  TO accu[MMV][PE];
 
+  decltype(activation.init(0,0))  accu[MMV][PE];
 #pragma HLS ARRAY_PARTITION variable=accu complete dim=0
 
   unsigned  nf   = 0;
@@ -125,14 +116,9 @@ void Matrix_Vector_Activate_Batch(
   // everything merged into a common iteration space (one "big" loop instead
   // of smaller nested loops) to get the pipelinening the way we want
   unsigned const TOTAL_FOLD = NF * SF;
-
-  std::cout << "SIMD:" << SIMD << ", pe: " << PE << ", NF:" << NF << ", SF:" << SF <<", mmv: " << MMV << ", TI: " << typeid(TI).name() << ", TW: " << typeid(TW).name() <<  ", TWeightI: " << typeid(TWeightI).name() << std::endl;
-
   for(unsigned  i = 0; i < reps * TOTAL_FOLD; i++) {
 #pragma HLS pipeline style=flp II=1
-
-    hls::vector<TI, SIMD> inElem;
-
+    TI  inElem;
     if(nf == 0) {
       // read input from stream
       inElem = in.read();
@@ -150,56 +136,35 @@ void Matrix_Vector_Activate_Batch(
 #pragma HLS UNROLL
         for(unsigned mmv = 0; mmv < MMV; mmv++) {
 #pragma HLS UNROLL
-          //accu[mmv][pe] = activation.init(nf, pe);
-          accu[mmv][pe] = 0; // TODO: initialise in a better way
+          accu[mmv][pe] = activation.init(nf, pe);
         }
       }
     }
 
     // compute matrix-vector product for each processing element
     auto const &w = weights.weights(tile);
-  
-    //std::cout << "w is of type: " << typeid(w).name() << std::endl;
     for(unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
-      auto const  wgt = w[pe];
-
-      //std::array<TWeightI, 1> const wgt = w[pe]; 
-      //std::cout << "wgt is of type: " << typeid(wgt).name() << std::endl;
-
+      auto const  wgt = TWeightI()(w[pe]);
       for (unsigned mmv = 0; mmv < MMV; mmv++){
-        //auto const  act = TSrcI()(inElem, mmv);
-        //accu[mmv][pe] = mac<SIMD>(accu[mmv][pe], wgt, act, r, mmv);
-        //accu[mmv][pe] = mac_New<SIMD, hls::vector<TI, SIMD>>(accu[mmv][pe], wgt, inputBuf[sf], r); 
-        
-        TO res = accu[mmv][pe]; 
-        for(int i = 0; i < SIMD; i++){ 
-          res = res + wgt[i] * inputBuf[sf][i];
-          std::cout << wgt[i] << " * " << inputBuf[sf][i] << " + " << accu[mmv][pe] << " = " << res << std::endl;
-        }
-        accu[mmv][pe] = res;
+        auto const  act = TSrcI()(inElem, mmv);
+        accu[mmv][pe] = mac<SIMD>(accu[mmv][pe], wgt, act, r, mmv);
       }
     }
 
     // keep track of which folded synapse/neuron we are processing
     ++tile;
-    hls::vector <TO, PE> vecOut;
     if(++sf == SF) {
       // produce output and clear accumulators
-      // auto  outElem = TDstI().template operator()<TO>();
+      auto  outElem = TDstI().template operator()<TO>();
       for (unsigned  pe = 0; pe < PE; pe++) {
 #pragma HLS UNROLL
         for (unsigned mmv = 0; mmv < MMV; mmv++){
 #pragma HLS UNROLL
-          //outElem(pe,mmv,1) = activation.activate(nf, pe, accu[mmv][pe]);
-          //std::cout << "accu[mmv][pe] before act: " << accu[mmv][pe];
-          //vecOut[pe] = activation.activate(nf, pe, accu[mmv][pe]); // raus. Aber wird noch benotigt. Warum?
-          vecOut[pe] = accu[mmv][pe];
-          //std::cout << ", after: " << vecOut[pe] << std::endl;
-          //vecOut[pe]++; // force wrong output for debugging
+          outElem(pe,mmv,1) = activation.activate(nf, pe, accu[mmv][pe]);
         }
       }
-      out.write(vecOut);
+      out.write(outElem);
       // next folded neuron or image
       sf = 0;
       if(++nf == NF) {
