@@ -43,11 +43,11 @@
 #include <cstdlib>
 #include "interpret_bipolar.hpp"
 
-constexpr unsigned PE = 16;
-constexpr unsigned chn = 16; // channels
-constexpr unsigned stp = 8; // number of steps (thresholds)
-constexpr unsigned mw = 2; // matrix width
-constexpr unsigned mh = 4; // matrix height
+constexpr unsigned PE = PE_;
+constexpr unsigned chn = CHN_; // channels
+constexpr unsigned stp = STP_; // number of steps (thresholds)
+constexpr unsigned mw = MW_; // matrix width
+constexpr unsigned mh = MH_; // matrix height
 constexpr unsigned dim = mh*mw;
 
 using TI = ap_uint<16>;

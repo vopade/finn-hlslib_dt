@@ -546,6 +546,7 @@ void Thresholding_Stream_Batch_Vector(hls::stream<hls::vector<TI, PE>> &in,
                         hls::stream<hls::vector<TT, PE*stp>> &wgt,
                         int const reps)
 {
+static_assert(chn >= PE, "Not enough data for all PEs available. Reduce number of PEs");
 #pragma HLS pipeline style=flp II=1
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks

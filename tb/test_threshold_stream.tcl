@@ -40,17 +40,22 @@
  #
 ###############################################################################
 
+# PE, channel, steps, matrixH, matrixW, 
+set params {{16 16 8 2 4} {8 8 32 2 4} {8 8 6 8 4}}
 
-# in case project already exists from an aborted previous run
-delete_project hls-syn-thresholding-stream 
-open_project hls-syn-thresholding-stream
-add_files threshold_stream_top.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb"
-add_files -tb threshold_stream_tb.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb"
-set_top Testbench_threshold_stream
-open_solution sol1
-set_part {xczu3eg-sbva484-1-i}
-create_clock -period 5 -name default
-csim_design
-csynth_design
-cosim_design
+foreach p $params {
+    # in case project already exists from an aborted previous run
+    delete_project hls-syn-thresholding-stream 
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DPE_=[lindex $p 0] -DCHN_=[lindex $p 1] -DSTP_=[lindex $p 2] -DMH_=[lindex $p 3] -DMW_=[lindex $p 4]"
+    open_project hls-syn-thresholding-stream
+    add_files threshold_stream_top.cpp -cflags $compilerFlags
+    add_files -tb threshold_stream_tb.cpp -cflags $compilerFlags
+    set_top Testbench_threshold_stream
+    open_solution sol1
+    set_part {xczu3eg-sbva484-1-i}
+    create_clock -period 5 -name default
+    csim_design
+    csynth_design
+    cosim_design
+}
 exit
