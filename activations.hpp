@@ -577,5 +577,4 @@ void Thresholding_Stream_Batch_Vector(hls::stream<hls::vector<TI, PE>> &in,
     out.write(v_o);
   }
 }
-
 #endif

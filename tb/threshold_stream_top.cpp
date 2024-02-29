@@ -46,6 +46,14 @@ void Testbench_threshold_stream(hls::stream<hls::vector<TI, PE>> &in,
                                 hls::stream<hls::vector<TT, PE*stp>> &weights,
                                 int const reps) {
 #pragma HLS DATAFLOW
+#pragma HLS interface AXIS port=in
+#pragma HLS interface AXIS port=weights
+#pragma HLS interface AXIS port=out
+#pragma HLS interface ap_ctrl_none port=return
+#pragma HLS aggregate variable=in compact=bit
+#pragma HLS aggregate variable=weights compact=bit
+#pragma HLS aggregate variable=out compact=bit
+#pragma HLS dataflow disable_start_propagation
 
     Thresholding_Stream_Batch_Vector<dim, chn, PE, 0, TT, stp, TI, TO>
     (

@@ -60,7 +60,7 @@ TO computeThresholds(TI in, TT ths[stp]) {
 int main() {  
     hls::stream<hls::vector<TI, PE>> s_in("input_stream");
     hls::stream<hls::vector<TO, PE>> s_out("output_stream");
-    hls::stream<hls::vector<TT, PE*stp>> s_ths("s_ths"); 
+    hls::stream<hls::vector<TT, PE*stp>> s_ths("stream_thresholds"); 
 
     TI in[dim][chn];
     TT ths[dim][chn][stp];

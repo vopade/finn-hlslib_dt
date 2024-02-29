@@ -41,17 +41,18 @@
 #include "interpret.hpp"
 #include "hls_vector.h"
 #include <cstdlib>
+#include "interpret_bipolar.hpp"
 
-constexpr unsigned PE = 128;
-constexpr unsigned chn = 128; // channels
+constexpr unsigned PE = 16;
+constexpr unsigned chn = 16; // channels
 constexpr unsigned stp = 8; // number of steps (thresholds)
-constexpr unsigned mw = 4; // matrix width
-constexpr unsigned mh = 16; // matrix height
+constexpr unsigned mw = 2; // matrix width
+constexpr unsigned mh = 4; // matrix height
 constexpr unsigned dim = mh*mw;
 
-using TI = ap_uint<32>;
-using TO = ap_uint<32>;
-using TT = ap_uint<16>;
+using TI = ap_uint<16>;
+using TO = ap_uint<33>;
+using TT = ap_uint<13>;
 using namespace hls;
 
 void Testbench_threshold_stream(hls::stream<hls::vector<TI, PE>> &in,
