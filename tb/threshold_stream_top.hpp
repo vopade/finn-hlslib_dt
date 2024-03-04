@@ -50,9 +50,9 @@ constexpr unsigned mw = MW_; // matrix width
 constexpr unsigned mh = MH_; // matrix height
 constexpr unsigned dim = mh*mw;
 
-using TI = ap_uint<16>;
-using TO = ap_uint<33>;
-using TT = ap_uint<13>;
+using TI = ap_int<16>;
+using TO = ap_int<33>;
+using TT = ap_int<13>;
 using namespace hls;
 
 void Testbench_threshold_stream(hls::stream<hls::vector<TI, PE>> &in,

@@ -41,22 +41,39 @@
 
 #include "threshold_stream_top.hpp"
 
+
+template
+<unsigned N, typename T>
+void move(hls::stream<T> & src, hls::stream<T> & dst) {
+    for(int i = 0; i < N; i++) {
+#pragma HLS pipeline II=1 style=flp
+        dst.write(src.read());
+    }
+}
+
 void Testbench_threshold_stream(hls::stream<hls::vector<TI, PE>> &in,
                                 hls::stream<hls::vector<TO, PE>> &out,
-                                hls::stream<hls::vector<TT, PE*stp>> &weights,
+                                hls::stream<hls::vector<TT, PE*stp>> &thr,
                                 int const reps) {
 #pragma HLS DATAFLOW
 #pragma HLS interface AXIS port=in
-#pragma HLS interface AXIS port=weights
+#pragma HLS interface AXIS port=thr
 #pragma HLS interface AXIS port=out
 #pragma HLS interface ap_ctrl_none port=return
 #pragma HLS aggregate variable=in compact=bit
-#pragma HLS aggregate variable=weights compact=bit
+#pragma HLS aggregate variable=thr compact=bit
 #pragma HLS aggregate variable=out compact=bit
 #pragma HLS dataflow disable_start_propagation
 
+    static hls::stream<hls::vector<TI, PE>> in_0("in_0");
+    static hls::stream<hls::vector<TT, PE*stp>> thr_0("thr_0");
+    static hls::stream<hls::vector<TO, PE>> out_0("out_0");
+
+    move<dim*chn/PE>(in, in_0);
+    move<dim*chn/PE>(thr, thr_0);
     Thresholding_Stream_Batch_Vector<dim, chn, PE, 0, TT, stp, TI, TO>
     (
-        in, out, weights, 1
+        in_0, out_0, thr_0, 1
     );
+    move<dim*chn/PE>(out_0, out);
 }
