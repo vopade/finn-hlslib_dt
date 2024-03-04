@@ -47,7 +47,6 @@ template
 void move(hls::stream<T> & src, hls::stream<T> & dst) {
     for(int i = 0; i < N; i++) {
 #pragma HLS pipeline II=1 style=flp
-    	std::cout << i << ", " << src.empty() << std::endl;
         dst.write(src.read());
     }
 }
