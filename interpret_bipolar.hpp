@@ -19,6 +19,13 @@ public:
   Bipolar operator*(Bipolar const& o) const {
     return ~(val ^ o.val); // XNOR, bitwise ~ can be used here since it is ap_uint<1> and it is more efficient than "!"
   }
+<<<<<<< HEAD
+=======
+
+Bipolar operator+=(Bipolar val, Bipolar const& o) const {
+    return val = val + o.val; 
+  }
+>>>>>>> mvau_vector
 };
 
 #endif
