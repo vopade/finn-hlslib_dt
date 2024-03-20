@@ -41,7 +41,8 @@
 ###############################################################################
 
 # PE, channel, steps, matrixH, matrixW, 
-set params {{16 16 8 2 4} {8 8 32 2 4} {8 8 6 8 4}}
+#set params {{8 8 6 8 4} {16 16 8 2 4} {8 8 32 2 4}}
+set params {{2 2 3 2 2}}
 
 foreach p $params {
     # in case project already exists from an aborted previous run
