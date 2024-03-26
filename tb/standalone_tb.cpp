@@ -82,15 +82,6 @@ void tiling(unsigned weightsIndices[PE*SIMD], int tileNumber) {
     }
 }
 
-template<typename TW>
-void generateWeights(int sizeThisLayer, int sizeNextLayer, TW* weights) {
-	for(int i = 0; i < sizeThisLayer; i++) {
-		for(int j = 0; j < sizeNextLayer; j++) {
-			weights[i*sizeNextLayer+j] = rand()%250;
-		}
-	}
-}
-
 template<typename TI, typename TO, typename TW>
 void computeLayer(int sizeThisLayer, int sizeNextLayer, TO* res, TI* in, TW* weights) {
 	std::cout << std::endl << std::endl << "TB MVAU output:" << std::endl;
@@ -143,6 +134,44 @@ void generateInput(TI image[MatrixW], unsigned SIMD, unsigned limit) {
 	}
 }
 
+template<typename TW>
+void generateWeights(unsigned sizeThisLayer, unsigned sizeNextLayer, TW* weights) {
+	for(int i = 0; i < sizeThisLayer; i++) {
+		for(int j = 0; j < sizeNextLayer; j++) {
+			weights[i*sizeNextLayer+j] = rand()%250;
+		}
+	}
+}
+
+// use predefined weights, i.e. from cybersecurity notebook
+template<typename TW>
+void generateWeights(unsigned sizeThisLayer, unsigned sizeNextLayer, TW* weights, TW* predef_weights) {
+	for(int i = 0; i < sizeThisLayer; i++) {
+		for(int j = 0; j < sizeNextLayer; j++) {
+			weights[i*sizeNextLayer+j] = predef_weights[i*sizeNextLayer+j];
+		}
+	}
+}
+
+template<typename TT>
+void generateThresholds(unsigned num_thresholds, unsigned numSteps, TT* thresholds) {
+	for(int i = 0; i < num_thresholds; i++) {
+		for(int j = 0; j < numSteps; j++) {
+			thresholds[i][j] = rand()%20;
+		}
+	}
+}
+
+// use predefined thresholds, i.e. from cybersecurity notebook
+template<typename TT>
+void generateThresholds(unsigned num_thresholds, unsigned numSteps, TT* thresholds, TT* predef_thresholds) {
+	for(int i = 0; i < num_thresholds; i++) {
+		for(int j = 0; j < numSteps; j++) {
+			thresholds[i][j] = predef_thresholds[i][j];
+		}
+	}
+}
+
 template<unsigned SIMD>
 void writeInputStream(TI image[MatrixW], hls::stream<hls::vector<TI, SIMD>> & input_stream) {
 	for (unsigned i = 0; i < MatrixW / SIMD; i++) {
@@ -165,6 +194,16 @@ int main() {
 	TO4 expected4[NUMCLASSES]; 
 	TO4 produced[NUMCLASSES];
 
+	TW1 weights1[MatrixH*MatrixW];
+	TW2 weights2[HIDDEN1*HIDDEN2];
+	TW3 weights3[HIDDEN2*HIDDEN3];
+	TW4 weights4[HIDDEN3*NUMCLASSES];
+	
+	TT thresholdingParams1[NUM_THRESHOLDS1][NUM_STEPS1];
+	TT thresholdingParams2[NUM_THRESHOLDS2][NUM_STEPS2];
+	TT thresholdingParams3[NUM_THRESHOLDS3][NUM_STEPS3];
+	TT thresholdingParams4[NUM_THRESHOLDS4][NUM_STEPS4];
+
 	hls::stream<hls::vector<TI, SIMD1>> input_stream;
 	hls::stream<hls::vector<TW1, SIMD1*PE1>> weight_stream1("weight_stream1");
 	hls::stream<hls::vector<TW2, SIMD2*PE2>> weight_stream2("weight_stream2");
@@ -178,6 +217,17 @@ int main() {
 	hls::stream<hls::vector<TO4, PE4>> output_stream("output_stream");
 
 	generateInput(image, SIMD1, 500);
+
+	generateWeights(MatrixH, MatrixW, weights1);
+	generateWeights(HIDDEN1, HIDDEN2,weights2);
+	generateWeights(HIDDEN2, HIDDEN3, weights3);
+	generateWeights(HIDDEN3, NUMCLASSES, weights4);
+
+	generateThresholds(NUM_THRESHOLDS1, NUM_STEPS1, thresholdingParams1, cyberthresholdingParams1);
+	generateThresholds(NUM_THRESHOLDS2, NUM_STEPS2, thresholdingParams2, cyberthresholdingParams2);
+	generateThresholds(NUM_THRESHOLDS3, NUM_STEPS3, thresholdingParams3, cyberthresholdingParams3);
+	generateThresholds(NUM_THRESHOLDS4, NUM_STEPS4, thresholdingParams4, cyberthresholdingParams4);	
+
 	writeInputStream<SIMD1>(image, input_stream);
 	writeWeightStream<MatrixH, MatrixW, TW1, PE1, SIMD1>(weights1, weight_stream1);
 	writeWeightStream<HIDDEN2, HIDDEN1, TW2, PE2, SIMD2>(weights2, weight_stream2);
@@ -200,7 +250,7 @@ int main() {
 	computeThresholdsForLayer<NUM_THRESHOLDS4,NUM_STEPS4,TO4,TO4,TT>(expected4, thresholdingParams4);
 	
 	// read results from MVAU
-	std::cout << "produced:" << std::endl;
+	std::cout << std::endl << "produced: ";
 	for (int i=0;i<NUMCLASSES/PE4;i++) {
 		hls::vector<TO4, PE4> prod = output_stream.read();
 		for(int j = 0; j < PE4; j++) {
