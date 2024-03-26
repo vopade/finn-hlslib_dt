@@ -231,7 +231,6 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
   //std::cout << "!!MatrixH:" << MatrixH << ", MatrixW:" << MatrixW << ", SIMD:" << SIMD << ", PE: " << PE << ", NF:" << NF << ", SF:" << SF <<", mmv: " << MMV << ", TI: " << typeid(TI).name() << ", TW: " << typeid(TW).name() << std::endl;
   for(unsigned  i = 0; i < reps; i++) {
     for(unsigned  tile = 0; tile < TOTAL_FOLD; tile++) {
-#pragma HLS pipeline II=1 style=flp
       hls::vector<TI, SIMD> inElem;
       if(nf == 0) {
         // read input from stream
