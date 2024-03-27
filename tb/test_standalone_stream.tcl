@@ -31,8 +31,7 @@
 ###############################################################################
 ###############################################################################
  #
- #  Authors: Giulio Gambardella <giuliog@xilinx.com>
- #           Jonas Kuehle <jonkuhle@amd.com>
+ #  Authors: Jonas Kuehle <jonkuhle@amd.com>
  #
  # \file test_conv3.tcl
  #
@@ -53,4 +52,6 @@ create_clock -period 5 -name default
 csim_design
 csynth_design
 cosim_design
+export_design -flow impl
+#vitis-run --mode hls --impl
 exit
