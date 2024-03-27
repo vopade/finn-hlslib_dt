@@ -40,8 +40,6 @@
  *****************************************************************************/
 #include "mvau_top.h"
 
-
-
 template
 <unsigned N, typename T>
 void move(hls::stream<T> & src, hls::stream<T> & dst) {

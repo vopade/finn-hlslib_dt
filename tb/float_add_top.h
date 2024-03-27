@@ -29,28 +29,22 @@
  *  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  ******************************************************************************/
-#pragma once
+#ifndef FLOAT_ADD_TOP_H
+#define FLOAT_ADD_TOP_H
 #include <hls_stream.h>
-using namespace hls;
 #include "ap_int.h"
 #include "bnn-library.h"
-
 #include "activations.hpp"
-#include "weights.hpp"
-#include "interpret.hpp"
 #include "hls_vector.h"
+
+using namespace hls;
 
 constexpr int PE = 1;
 constexpr int IFM_CH = 1;
 constexpr int OFM_CH = 1;
 constexpr int FOLD = 1;
 constexpr int DIM = 1;
-constexpr int BIT_IN = 10;
-constexpr int BIT_OUT = BIT_IN;
-
-// using TI = ap_int<BIT_IN>;
-// using TP = ap_int<BIT_IN>;
-// using TO = ap_int<BIT_OUT>;
+constexpr int FLOAT_WIDTH = 32;
 
 using TI = float;
 using TP = float; // datatype param
@@ -63,3 +57,4 @@ const TP add_init[IFM_CH] = ADD_INIT;
 
 void Testbench_float_add(hls::stream<hls::vector<TI,IFM_CH> > & in, 
                      hls::stream<hls::vector<TO,OFM_CH> > & out, unsigned int numReps);
+#endif

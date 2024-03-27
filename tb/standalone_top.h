@@ -52,6 +52,18 @@ constexpr unsigned NUM_STEPS4 = 1;
 
 constexpr unsigned PE_THR = 1;
 
+/* 
+define: 
+numLayers
+data structure for input (unchanged), weights and thresholds, expected and produced, NUM_THRESHOLDS1, NUM_THRESHOLDS1
+data types
+*/
+
+constexpr unsigned NUM_LAYERS = 4; 
+constexpr unsigned PE[NUM_LAYERS] = {4,2,4,1};
+constexpr unsigned SIMD[NUM_LAYERS] = {8,4,2,2};
+constexpr unsigned LAYER_SIZES[NUM_LAYERS+1] = {600, 64, 64, 64, 1}; // first is input size -> rename
+
 /*
 using TI = ap_int<2>;
 using TW1 = ap_int<2>;

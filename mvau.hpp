@@ -206,6 +206,7 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
   TW && weights, 
   int const  reps
 ) {
+  std::cout << std::endl << "HLS MVAU" << std::endl;
   // how many different rows each neuron will compute
   // alternatively: number of vertical matrix chunks
   unsigned const NF = MatrixH / PE;
@@ -259,10 +260,12 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
           TO res = accu[mmv][pe]; 
           for(int s = 0; s < SIMD; s++) { 
             res += w[s*PE+pe] * inputBuf[sf][s]; 
+            //std::cout << w[s*PE+pe] << " * " << inputBuf[sf][s] << " = " << w[s*PE+pe] * inputBuf[sf][s];
           }
           accu[mmv][pe] = res;
         }
       }
+      //std::cout << std::endl;
       // keep track of which folded synapse/neuron we are processing
       ++tileCtr;
       hls::vector <TO, PE> vecOut;
@@ -273,7 +276,9 @@ void Matrix_Vector_Activate_Stream_Vector_Batch(
             vecOut[pe] = accu[mmv][pe];
           }
         }
-
+        for(int ii = 0; ii < PE; ii++) {
+            std::cout << vecOut[ii] << ", ";
+        }
         out.write(vecOut);
         // next folded neuron or image
         sf = 0;

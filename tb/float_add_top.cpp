@@ -45,7 +45,7 @@
  void Testbench_float_add(hls::stream<hls::vector<TI,IFM_CH> > & in, 
                      hls::stream<hls::vector<TO,OFM_CH> > & out, unsigned int numReps){
 #pragma HLS DATAFLOW
-#pragma HLS STREAM variable=in depth=BIT_IN*PE
+#pragma HLS STREAM variable=in depth=FLOAT_WIDTH*PE
 #pragma HLS aggregate variable=in compact=bit
 
     ChannelWiseOperation<FOLD, PE, TO, TP, TO, 

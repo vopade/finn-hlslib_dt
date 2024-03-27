@@ -431,6 +431,8 @@ void Thresholding_Batch(hls::stream<hls::vector<TI,PE>> &in,
     hls::vector<TI,PE> vecIn = in.read();
     hls::vector<TO,PE> vecOut;
 
+  for (unsigned i = 0; i < reps * ImgDim * NF; i++) {
+  }
     for (unsigned pe = 0; pe < PE; pe++){
 #pragma HLS UNROLL
       vecOut[pe] = activation.activate(nf, pe, vecIn[pe]);
@@ -562,17 +564,19 @@ static_assert(chn >= PE, "Not enough data for all PEs available. Reduce number o
     hls::vector<TI,PE> v_i = in.read();
     hls::vector<TO,PE> v_o;
     hls::vector<TT,PE*stp> w = wgt.read(); // get 1 PE's worth of thresholds
-
     for (unsigned pe = 0; pe < PE; pe++)
     {
 #pragma HLS UNROLL
+    //std::cout << "thrsholding HLS input: " << v_i[pe] << " weights: ";
       // slicer to get individual thresholds
       for (unsigned nt = 0; nt < stp; nt++) 
       {
 #pragma HLS UNROLL
         internal_thr.m_thresholds[pe][0][nt] = w[pe*stp+nt];
+        //std::cout << w[pe*stp+nt] << ", ";
       }
       v_o[pe] = internal_thr.activate(0, pe, v_i[pe]);
+      //std::cout << " output=" << v_o[pe] << std::endl;
     }
     out.write(v_o);
   }

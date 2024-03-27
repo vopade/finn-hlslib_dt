@@ -47,10 +47,8 @@
 #include <cstdlib>
 #define AP_INT_MAX_W 8191
 #include "ap_int.h"
-#include "weights.hpp"
 #include "bnn-library.h"
 #include "activations.hpp"
-#include "interpret.hpp"
 #include "float_add_top.h"  
 
 using namespace hls;

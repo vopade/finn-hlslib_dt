@@ -45,12 +45,12 @@ using namespace hls;
 using namespace std;
 
 template<typename TO, typename TI, typename TT>
-TO computeThresholds(TI in, TT ths[stp]) {
+TO computeThresholds(TI in, TT thr[stp]) {
 
-    std::sort(ths, ths + stp); 
+    std::sort(thr, thr + stp); 
     TO out = 0;
     for(int i = 0; i < stp; i++) {
-        if(in >= ths[i]) {
+        if(in >= thr[i]) {
             out = i+1;
         }
     }
@@ -63,7 +63,7 @@ int main() {
     hls::stream<hls::vector<TT, PE*stp>> s_ths("stream_thresholds"); 
 
     TI in[dim][chn];
-    TT ths[dim][chn][stp];
+    TT thr[dim][chn][stp];
     TO prod[dim][chn];
     TO exp[dim][chn];
     
@@ -71,6 +71,9 @@ int main() {
     for(int d = 0; d < dim; d++) {
         for(int i = 0; i < chn; i++) {
             in[d][i] = rand()%20;
+            if(rand()%2) { // generate some negative numbers
+                in[d][i] *= -1;
+            }
         }
     }
 
@@ -78,7 +81,10 @@ int main() {
     for(int d = 0; d < dim; d++) {    
         for(int i = 0; i < chn; i++) {
             for(int j = 0; j < stp; j++) {
-                ths[d][i][j] = rand()%20;
+                thr[d][i][j] = rand()%20;
+                if(rand()%2) { // generate some negative numbers
+                    thr[d][i][j] *= -1;
+                }
             }
         }
     }
@@ -88,7 +94,8 @@ int main() {
         for(int i = 0; i < chn; i++) {
             TT act_thr[stp];
             for(int j = 0; j < stp; j++) {
-                act_thr[j] = ths[d][i][j];
+                act_thr[j] = thr[d][i][j];
+                
             }
             exp[d][i] = computeThresholds<TO>(in[d][i], act_thr);
         }
@@ -111,7 +118,7 @@ int main() {
             hls::vector<TT, PE*stp> act_thr;
             for(int j = 0; j < PE; j++) {
                 for(int k = 0; k < stp; k++) {
-                    act_thr[j*stp+k] = ths[d][i*PE+j][k];
+                    act_thr[j*stp+k] = thr[d][i*PE+j][k];
                 }
             }
             s_ths.write(act_thr);
@@ -136,7 +143,7 @@ int main() {
             if(prod[d][i] != exp[d][i]) {
                 std::cerr << "ERROR!!! produced: " << prod[d][i] << ", expected: " << exp[d][i] << ".\t\t input: " << in[d][i] << ", thresholds: ";
                 for(int j = 0; j < stp; j++) {
-                    std::cerr << ths[d][i][j] << ", ";
+                    std::cerr << thr[d][i][j] << ", ";
                 }
                 error_occured = true;
                 std::cout << std::endl;
