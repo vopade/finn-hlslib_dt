@@ -105,8 +105,9 @@ void writeThresholdStream(hls::stream<hls::vector<TT, PE*numSteps>> & stream, TT
 	}
 }
 
-template<unsigned sizeThisLayer, unsigned sizePrevLayer, typename WDT, unsigned PE, unsigned SIMD>
-void writeWeightStream(WDT weights[sizePrevLayer*sizeThisLayer], hls::stream<hls::vector<WDT, SIMD*PE>> & weight_stream) {
+// TW is deductible from parameter
+template<unsigned sizeThisLayer, unsigned sizePrevLayer, unsigned PE, unsigned SIMD, typename TW>
+void writeWeightStream(TW weights[sizePrevLayer*sizeThisLayer], hls::stream<hls::vector<TW, SIMD*PE>> & weight_stream) {
 	constexpr int TX = sizeThisLayer / PE; // using transposed matrix
 	constexpr int TY = sizePrevLayer / SIMD; // using transposed matrix
 	int counter = 0;
@@ -114,7 +115,7 @@ void writeWeightStream(WDT weights[sizePrevLayer*sizeThisLayer], hls::stream<hls
         for (int ty = 0; ty < TY; ty++) {
             unsigned weightsIndices[PE*SIMD];
             tiling<PE, SIMD, sizeThisLayer>(weightsIndices, ty * TX + tx);
-            hls::vector<WDT, PE*SIMD> weigthsVecIn;
+            hls::vector<TW, PE*SIMD> weigthsVecIn;
 			for(int i = 0; i < PE*SIMD; i++) {
 				weigthsVecIn[i] = weights[weightsIndices[i]]; // get weight at index
 			}
@@ -229,10 +230,11 @@ int main() {
 	generateThresholds(NUM_THRESHOLDS4, NUM_STEPS4, thresholdingParams4, cyberthresholdingParams4);	
 
 	writeInputStream<SIMD1>(image, input_stream);
-	writeWeightStream<MatrixH, MatrixW, TW1, PE1, SIMD1>(weights1, weight_stream1);
-	writeWeightStream<HIDDEN2, HIDDEN1, TW2, PE2, SIMD2>(weights2, weight_stream2);
-	writeWeightStream<HIDDEN3, HIDDEN2, TW3, PE3, SIMD3>(weights3, weight_stream3);
-	writeWeightStream<NUMCLASSES, HIDDEN3, TW4, PE4, SIMD4>(weights4, weight_stream4);
+	writeWeightStream<MatrixH, MatrixW, PE1, SIMD1>(weights1, weight_stream1);
+	writeWeightStream<HIDDEN2, HIDDEN1, PE2, SIMD2>(weights2, weight_stream2);
+	writeWeightStream<HIDDEN3, HIDDEN2, PE3, SIMD3>(weights3, weight_stream3);
+	writeWeightStream<NUMCLASSES, HIDDEN3, PE4, SIMD4> (weights4, weight_stream4);
+
 	writeThresholdStream<PE_THR, TT, NUM_STEPS1, NUM_THRESHOLDS1>(thr_stream1, thresholdingParams1); // PE_THR must be 1, because thresoldig assumes that if chn=1
 	writeThresholdStream<PE_THR, TT, NUM_STEPS2, NUM_THRESHOLDS2>(thr_stream2, thresholdingParams2);
 	writeThresholdStream<PE_THR, TT, NUM_STEPS3, NUM_THRESHOLDS3>(thr_stream3, thresholdingParams3);
