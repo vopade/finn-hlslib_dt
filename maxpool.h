@@ -37,6 +37,7 @@
  *             Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
  *           Christoph Doehring <cdoehrin@xilinx.com>
  *           Felix Jentzsch <felixj@xilinx.com>
+ *           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *
  *  Library of templated HLS functions for QNN deployment. 
@@ -100,7 +101,7 @@ void StreamingMaxPool(hls::stream<ap_uint<NumChannels> > & in,
  * \brief   Max Pool implementation for Binarized values on multiple images
  *
  * This function performes the maxpool for binary inputs, and works with kernel and stride being equal 
- * 
+ *
  * \tparam ImgDim       Width and Heigth of the Input Feature Map (assumed square)
  * \tparam PoolDim      Dimension of the Max Pool kernel (assumed square)
  * \tparam NumChannels  Number of Input Feature Maps
@@ -135,11 +136,9 @@ void StreamingMaxPool_Batch(hls::stream<ap_uint<NumChannels> > & in,
  * \param out           Output stream
  *
  */
-template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value, 
-        int StreamW 
-        >
-void StreamingMaxPool_Precision(hls::stream<ap_uint<StreamW> > & in,
-        hls::stream<ap_uint<StreamW> > & out) {
+template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value>
+void StreamingMaxPool_Precision(hls::stream<hls::vector<ActType, NumChannels> > & in,
+                                hls::stream<hls::vector<ActType, NumChannels> > & out) {
   static_assert(ImgDim % PoolDim == 0, "");
   // need buffer space for a single maxpooled row of the image
   ActType buf[ImgDim / PoolDim][NumChannels];
@@ -150,7 +149,7 @@ void StreamingMaxPool_Precision(hls::stream<ap_uint<StreamW> > & in,
       buf[i][ch] = min_value; //std::numeric_limits<ActType>::min();
     }
   }
-  ap_uint<StreamW> inputData,outputData;
+  hls::vector<ActType, NumChannels> inputData,outputData;
   for (unsigned int yp = 0; yp < ImgDim / PoolDim; yp++) {
     for (unsigned int ky = 0; ky < PoolDim; ky++) {
       for (unsigned int xp = 0; xp < ImgDim / PoolDim; xp++) {
@@ -159,10 +158,8 @@ void StreamingMaxPool_Precision(hls::stream<ap_uint<StreamW> > & in,
 #pragma HLS pipeline style=flp II=1
           inputData = in.read();
           for(unsigned int ch = 0; ch<NumChannels; ch++){
-#pragma HLS UNROLL                      
-            unsigned int lowBit = ch * ActType::width;
-            unsigned int highBit = (ch+1) * ActType::width -1;
-            ActType channeldata = inputData(highBit, lowBit);                   
+#pragma HLS UNROLL
+            ActType channeldata = inputData[ch];
             ActType oldMax = buf[xp][ch];               
             if(channeldata > oldMax){
               buf[xp][ch] = channeldata;
@@ -174,9 +171,7 @@ void StreamingMaxPool_Precision(hls::stream<ap_uint<StreamW> > & in,
     for (unsigned int outpix = 0; outpix < ImgDim / PoolDim; outpix++) {
       for(unsigned int ch = 0; ch < NumChannels; ch++){
 #pragma HLS UNROLL
-        unsigned int lowBit = ch * ActType::width;
-        unsigned int highBit = (ch+1) * ActType::width -1;  
-        outputData(highBit, lowBit) = buf[outpix][ch];
+        outputData[ch] = buf[outpix][ch];
         // get buffer ready for next use
         buf[outpix][ch] = min_value;
       }
@@ -195,31 +190,27 @@ void StreamingMaxPool_Precision(hls::stream<ap_uint<StreamW> > & in,
  * \tparam NumChannels  Number of Input Feature Maps
  * \tparam ActType      DataType of the input activation (as used in the comparison)
  * \tparam min_value    Minimum value possible with the given ActType, used to initialize the value before the comparison
- * \tparam StreamW      Width of the input and output stream
- * 
+ *
  * \param in            Input stream
  * \param out           Output stream
  * \param numReps       Number of time the function has to be repeatedly executed (e.g. number of images)
  *
  */
-template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value, 
-        int InStreamW, int OutStreamW  // safely deducible (stream width must be int though!)
-        >
-void StreamingMaxPool_Precision_Batch(hls::stream<ap_uint<InStreamW> > & in,
-        hls::stream<ap_uint<OutStreamW> > & out, unsigned int numReps) {
+template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, typename ActType, int min_value>
+void StreamingMaxPool_Precision_Batch(hls::stream<hls::vector<ActType, NumChannels> > & in,
+        hls::stream<hls::vector<ActType, NumChannels> > & out, unsigned int numReps) {
 #pragma HLS INLINE
-  unsigned const  InpPerImage = ImgDim*ImgDim*NumChannels*ActType::width/InStreamW ;
+
+  unsigned const  InpPerImage = ImgDim*ImgDim;
   unsigned const  OutPerImage = ImgDim*ImgDim / (PoolDim*PoolDim);
-  hls::stream<ap_uint<NumChannels*ActType::width> > wa_in("StreamingMaxPool_Precision_Batch.wa_in");
-  hls::stream<ap_uint<NumChannels*ActType::width> > mvOut("StreamingMaxPool_Precision_Batch.mvOut");
-  StreamingDataWidthConverter_Batch<InStreamW, NumChannels*ActType::width, InpPerImage>(in, wa_in, numReps);
+  hls::stream<hls::vector<ActType, NumChannels> > wa_in("StreamingMaxPool_Precision_Batch.wa_in");
+  hls::stream<hls::vector<ActType, NumChannels> > mvOut("StreamingMaxPool_Precision_Batch.mvOut");
+  StreamingDataWidthConverterVector_Batch<InpPerImage, ActType, ActType, NumChannels, NumChannels>(in, wa_in, numReps);
   for (unsigned int rep = 0; rep < numReps; rep++) {
     StreamingMaxPool_Precision<ImgDim, PoolDim, NumChannels, ActType, min_value>
-      (static_cast<hls::stream<ap_uint<NumChannels*ActType::width>>&>(wa_in), 
-      static_cast<hls::stream<ap_uint<NumChannels*ActType::width>>&>(mvOut));
+      (wa_in, mvOut);
   }
-  StreamingDataWidthConverter_Batch<NumChannels*ActType::width, OutStreamW, OutPerImage>(mvOut, out, numReps);
-
+  StreamingDataWidthConverterVector_Batch<OutPerImage, ActType, ActType, NumChannels, NumChannels>(mvOut, out, numReps);
 }
 
 
@@ -244,8 +235,8 @@ void StreamingMaxPool_Precision_Batch(hls::stream<ap_uint<InStreamW> > & in,
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, unsigned int PE,
         unsigned int OutputSize, typename ActType, int min_value
         >
-void StreamingMaxPool_Precision_1d(hls::stream<ap_uint<PE*ActType::width> > & in,
-        hls::stream<ap_uint<PE*ActType::width> > & out) {
+void StreamingMaxPool_Precision_1d(hls::stream<hls::vector<ActType, PE> > & in,
+        hls::stream<hls::vector<ActType, PE> > & out) {
   static_assert(NumChannels % PE == 0, "");
   constexpr unsigned NF = NumChannels / PE;
   constexpr unsigned REMAINDER_PIXELS = ImgDim > PoolDim * OutputSize ? ImgDim - OutputSize * PoolDim : 0;
@@ -262,7 +253,7 @@ void StreamingMaxPool_Precision_1d(hls::stream<ap_uint<PE*ActType::width> > & in
     }
   }
 
-  ap_uint<PE*ActType::width> inputData,outputData;
+  hls::vector<ActType, PE> inputData,outputData;
   unsigned input_count = 0;
   for (unsigned int xp = 0; xp < OutputSize; xp++) {
     // Change to comparator
@@ -273,9 +264,7 @@ void StreamingMaxPool_Precision_1d(hls::stream<ap_uint<PE*ActType::width> > & in
           inputData = in.read();
           for(unsigned int p = 0; p < PE; p++){
 #pragma HLS UNROLL
-            unsigned const lowBit = p * ActType::width;
-            unsigned const highBit = (p+1) * ActType::width -1;
-            ActType const channeldata = inputData(highBit, lowBit);
+            ActType const channeldata = inputData[p];
             ActType const oldMax = buf[ch][p];
             if(channeldata > oldMax){
               buf[ch][p] = channeldata;
@@ -288,9 +277,7 @@ void StreamingMaxPool_Precision_1d(hls::stream<ap_uint<PE*ActType::width> > & in
 #pragma HLS pipeline style=flp II=1
       for(unsigned int p = 0; p < PE; p++){
 #pragma HLS UNROLL
-        unsigned const lowBit = p * ActType::width;
-        unsigned const highBit = (p+1) * ActType::width -1;
-        outputData(highBit, lowBit) = buf[ch][p];
+        outputData[p] = buf[ch][p];
         // get buffer ready for next use
         buf[ch][p] = min_value;
       }
@@ -326,8 +313,8 @@ void StreamingMaxPool_Precision_1d(hls::stream<ap_uint<PE*ActType::width> > & in
 template<unsigned int ImgDim, unsigned int PoolDim, unsigned int NumChannels, unsigned int PE,
         unsigned int OutputSize, typename ActType, int min_value
         >
-void StreamingMaxPool_Precision_Batch_1d(hls::stream<ap_uint<PE*ActType::width> > & in,
-        hls::stream<ap_uint<PE*ActType::width> > & out, unsigned int numReps) {
+void StreamingMaxPool_Precision_Batch_1d(hls::stream<hls::vector<ActType, PE> > & in,
+        hls::stream<hls::vector<ActType, PE> > & out, unsigned int numReps) {
 #pragma HLS INLINE
   for (unsigned int rep = 0; rep < numReps; rep++) {
     StreamingMaxPool_Precision_1d<ImgDim, PoolDim, NumChannels, PE, OutputSize,
@@ -357,33 +344,33 @@ template<
         typename ActType,           
         unsigned int PECount,
     int offset = 0>
-void ReLU_Batch(hls::stream<ap_uint<PECount * ActType::width> > & in,
-        hls::stream<ap_uint<PECount * ActType::width> > & out, const unsigned int numReps) {
+void ReLU_Batch(hls::stream<hls::vector<ActType, PECount> > & in,
+    hls::stream<hls::vector<ActType, PECount> > & out, const unsigned int numReps) {
 
-    ap_uint<PECount * ActType::width> thin;
-    ap_uint<PECount * ActType::width> thout;
+    hls::vector<ActType, PECount> thin;
+    hls::vector<ActType, PECount> thout;
     
     //call to thresholding library function
     for(unsigned int reps=0; reps<numReps; reps++){
-        for(unsigned int pixel=0; pixel<ImgDim*ImgDim; pixel++){
-      for(unsigned int fold=0; fold<NumChannels/PECount; fold++){
+        for(unsigned int pixel=0; pixel<ImgDim*ImgDim; pixel++) {
+          for (unsigned int fold = 0; fold < NumChannels / PECount; fold++) {
 #pragma HLS pipeline style=flp II=1
-        thin = in.read();
-        for(unsigned int pe=0; pe<PECount; pe++){
+            thin = in.read();
+            for (unsigned int pe = 0; pe < PECount; pe++) {
 #pragma HLS UNROLL
-          // Threshold and assign to right bits of output buffers
-          unsigned int lowBit = pe * ActType::width;
-          unsigned int highBit = (pe+1) * ActType::width - 1;
-          ActType val = thin(highBit,lowBit);
-          ActType result;
-          if(val < offset)
-                  result = 0;
-          else
-                  result = val - offset;
-          thout(highBit, lowBit) = result;
-        }    
-        out.write(thout);
-      }
+              // Threshold and assign to right bits of output buffers
+              unsigned int lowBit = pe * ActType::width;
+              unsigned int highBit = (pe + 1) * ActType::width - 1;
+              ActType val = thin[pe];
+              ActType result;
+              if (val < offset)
+                result = 0;
+              else
+                result = val - offset;
+              thout[pe]= result;
+            }
+            out.write(thout);
+          }
         }
     }
 }
@@ -404,39 +391,38 @@ void ReLU_Batch(hls::stream<ap_uint<PECount * ActType::width> > & in,
  */
 template<
     unsigned int ImgDim,     
-        unsigned int NumChannels,       
-        typename ActType,           
-        unsigned int PECount,      
-        typename AccType>
-void AccPool_Batch(hls::stream<ap_uint<PECount * ActType::width> > & in,
-        hls::stream<ap_uint<PECount * AccType::width> > & out, const unsigned int numReps) {
-    ap_uint<PECount * ActType::width> thin;
-  ap_uint<PECount * AccType::width> accumulators[NumChannels/PECount];
+    unsigned int NumChannels,
+    typename ActType,
+    unsigned int PECount,
+    typename AccType>
+void AccPool_Batch(hls::stream<hls::vector<ActType, PECount> > & in,
+        hls::stream<hls::vector<AccType, PECount> > & out, const unsigned int numReps) {
+  hls::vector <ActType, PECount> thin;
+  hls::vector <AccType, PECount> accumulators[NumChannels / PECount];
 #pragma HLS bind_storage variable=accumulators type=RAM_2P impl=LUTRAM
 
-    //call to thresholding library function
-    for(unsigned int reps=0; reps<numReps; reps++){
-        for(unsigned int pixel=0; pixel<ImgDim*ImgDim; pixel++){
-      for(unsigned int fold=0; fold<NumChannels/PECount; fold++){
+  //call to thresholding library function
+  for (unsigned int reps = 0; reps < numReps; reps++) {
+    for (unsigned int pixel = 0; pixel < ImgDim * ImgDim; pixel++) {
+      for (unsigned int fold = 0; fold < NumChannels / PECount; fold++) {
 #pragma HLS pipeline style=flp II=1
         thin = in.read();
-        ap_uint<PECount * AccType::width> accbank = accumulators[fold];
-        for(unsigned int pe=0; pe<PECount; pe++){
+        hls::vector <AccType, PECount> accbank = accumulators[fold];
+        for (unsigned int pe = 0; pe < PECount; pe++) {
 #pragma HLS UNROLL
-          // Threshold and assign to right bits of output buffers
-          ActType const  val = thin((pe+1) * ActType::width - 1,pe * ActType::width);
-          AccType const  acc = accbank((pe+1) * AccType::width - 1,pe * AccType::width);
-          AccType const  result = val + (pixel == 0? AccType(0) : acc);
-          accbank((pe+1) * AccType::width - 1,pe * AccType::width) = result;
+          // Threshold and assign to output buffers
+          ActType const val = thin[pe];
+          AccType const acc = accbank[pe];
+          AccType const result = val + (pixel == 0 ? AccType(0) : acc);
+          accbank[pe] = result;
         }
-        accumulators[fold] = accbank;     
+        accumulators[fold] = accbank;
       }
-        }
-    for (unsigned int fold = 0; fold < NumChannels / PECount; fold++)
-    {
+    }
+    for (unsigned int fold = 0; fold < NumChannels / PECount; fold++) {
       out.write(accumulators[fold]);
     }
-    }
+  }
 }
 
 
@@ -463,7 +449,7 @@ template<
     unsigned int NumTop,
     typename In_T,
     typename Out_T>
-void LabelSelect_Batch(hls::stream<ap_uint<PECount * In_T::width> > & in,
+void LabelSelect_Batch(hls::stream<hls::vector<In_T, PECount> > & in,
         hls::stream<Out_T> & out, const unsigned int numReps) {
 
   // Check that classes, aka. labels / indeces, can be encoded as non-negative outputs
@@ -487,13 +473,11 @@ void LabelSelect_Batch(hls::stream<ap_uint<PECount * In_T::width> > & in,
     }
     for(unsigned int block=0; block<(NumClasses/PECount); block++){
 #pragma HLS pipeline style=flp II=1
-      ap_uint<PECount * In_T::width> const  inval = in.read();
+      hls::vector<In_T, PECount> const  inval = in.read();
       for(unsigned int elem=0; elem<PECount; elem++){
 #pragma HLS UNROLL
         // Extract individual input
-        unsigned const  lowBit = elem * In_T::width;
-        unsigned const  highBit = (elem+1) * In_T::width - 1;
-        In_T const  val = inval(highBit,lowBit);
+        In_T const  val = inval[elem];
 
         // Compare input against all current tops
         bool  cmp[NumTop+1];

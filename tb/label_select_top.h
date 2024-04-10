@@ -43,6 +43,8 @@ using namespace hls;
 #define FM_Channels1 NumClasses
 #define PE1 5
 #define INPUT_PRECISION 16
+using streamType = ap_uint<INPUT_PRECISION>;
+
 
 #if SIGNED_INPUT
     #define In_T ap_int<INPUT_PRECISION>
@@ -52,6 +54,6 @@ using namespace hls;
 
 #define Out_T ap_uint<OUT_WIDTH> 
 
-void Testbench_label_select(stream<ap_uint<INPUT_PRECISION> > & in, 
+void Testbench_label_select(stream<streamType> & in,
                 stream<Out_T> & out, unsigned int numReps);
 

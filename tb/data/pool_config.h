@@ -36,4 +36,5 @@
 #define OFMDim1 8
 #define PRECISION 3
 #define PE1 1
+using T = ap_uint<PRECISION>;
 

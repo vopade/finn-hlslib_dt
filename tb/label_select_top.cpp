@@ -32,6 +32,7 @@
 /******************************************************************************
  *
  *  Authors: Tobias Alonso <tobiasa@xilinx.com>
+ *           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  \file label_select_top.cpp
  *
@@ -41,12 +42,14 @@
 
 #include "label_select_top.h"
 
-void Testbench_label_select(stream<ap_uint<INPUT_PRECISION> > & in, 
+void Testbench_label_select(stream<streamType> & in,
                 stream<Out_T> & out, unsigned int numReps){
     #pragma HLS DATAFLOW
 
-    hls::stream<ap_uint<PE1*INPUT_PRECISION> > wa_input("wa_input");
-    StreamingDataWidthConverter_Batch<INPUT_PRECISION,PE1*INPUT_PRECISION, FM_Channels1>
-                                (in, wa_input, numReps);
+    hls::stream<hls::vector<In_T, PE1> > wa_input("wa_input");
+
+    StreamingDataWidthConverterScalarToVector_Batch<FM_Channels1, streamType, In_T, PE1>(in, wa_input, numReps);
+
     LabelSelect_Batch<NumClasses,PE1,NumTop,In_T,Out_T> (wa_input,out,numReps);
+
 }

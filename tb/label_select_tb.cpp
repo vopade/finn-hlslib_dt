@@ -60,15 +60,17 @@ using namespace std;
 int main(int argc, char const *argv[])
 {   
     
-    int sig_in_vec[10] = {-12043, 30370, -23559, -30747, -11173, 30686, 19723, 
+    int sig_in_vec[NumClasses] = {-12043, 30370, -23559, -30747, -11173, 30686, 19723,
                             -8171, -16169, 809};
-    int sig_in_golden[10] = {5, 1, 6, 9, 7, 4, 0, 8, 2, 3};
+    int sig_in_golden[NumClasses] = {5, 1, 6, 9, 7, 4, 0, 8, 2, 3};
 
-    uint unsig_in_vec[10] = {12043, 30370, 23559, 30747, 11173, 30686, 19723, 
+    uint unsig_in_vec[NumClasses] = {12043, 30370, 23559, 30747, 11173, 30686, 19723,
                             8171, 16169, 809};
-    uint unsig_in_golden[10] = {3, 5, 1, 2, 6, 8, 0, 4, 7, 9};
+    uint unsig_in_golden[NumClasses] = {3, 5, 1, 2, 6, 8, 0, 4, 7, 9};
 
-    hls::stream<ap_uint<INPUT_PRECISION>> input_st;
+    // Warum wird hier nicht gleich der ganze Input als Vektor übergeben, sondern immer nur ein Wert?
+
+    hls::stream<streamType> input_st;
     hls::stream<Out_T> output_st;
     for (int batch = 0; batch < MAX_IMAGES; ++batch){
         for (int i = 0; i < FM_Channels1; ++i)
