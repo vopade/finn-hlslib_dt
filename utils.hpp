@@ -36,6 +36,7 @@
  *           Thomas B. Preusser <thomas.preusser@utexas.edu>
  *             Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
  *           Christoph Doehring <cdoehrin@xilinx.com>
+ *           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  @file utils.hpp
  *
@@ -79,26 +80,26 @@ class ap_resource_uram {};
  * \brief   Stream logger - Logging call to dump on file - not synthezisable
  *
  *
- * \tparam     BitWidth    Width, in number of bits, of the input (and output) stream
+ * \tparam     T    Type of the input (and output) stream
  *
  * \param      layer_name   File name of the dump
  * \param      log          Input (and output) stream
  *
  */
-template < unsigned int BitWidth >
-void logStringStream(const char *layer_name, hls::stream<ap_uint<BitWidth> > &log){
+template < typename T >
+void logStringStream(const char *layer_name, hls::stream<T > &log){
     std::ofstream ofs(layer_name);
-    hls::stream<ap_uint<BitWidth> > tmp_stream;
+    hls::stream<T > tmp_stream;
 	
   while(!log.empty()){
-    ap_uint<BitWidth> tmp = (ap_uint<BitWidth>) log.read();
+    T tmp = (T) log.read();
     ofs << std::hex << tmp << std::endl;
     tmp_stream.write(tmp);
   }
 
   while(!tmp_stream.empty()){
-    ap_uint<BitWidth> tmp = tmp_stream.read();
-    log.write((ap_uint<BitWidth>) tmp);
+    T tmp = tmp_stream.read();
+    log.write((T) tmp);
   }
 
   ofs.close();
