@@ -13,4 +13,7 @@
 #define ACTIVATION_PRECISION 16 
 #define REDF 3 
 #define NUM_RED 2 
-#define MAX_CH_WIDTH 6 // 2^6 = 64 channel indexes 
+#define MAX_CH_WIDTH 6 // 2^6 = 64 channel indexes
+using TA = ap_uint<ACTIVATION_PRECISION>; // type activation
+using TI = ap_uint<INPUT_PRECISION>; // type input
+

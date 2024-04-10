@@ -32,6 +32,7 @@
 /******************************************************************************
  *
  *  Authors: Timoteo Garcia Bertoa <timoteog@xilinx.com>
+ *         Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  \file tmrc_stmr_tb.cpp
  *
@@ -64,18 +65,18 @@ using namespace std;
 
 #define MAX_IMAGES 2
 
-void Testbench_tmrc_stmr(stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > & in,
-						 stream<ap_uint<(OFM_Channels1-NUM_RED*(REDF-1))*ACTIVATION_PRECISION> > & out,
+void Testbench_tmrc_stmr(stream<hls::vector<TA, OFM_Channels1> > & in,
+						 stream<hls::vector<TA, OFM_Channels1-NUM_RED*(REDF-1)> > & out,
 						 unsigned int numReps,
 						 ap_uint<2> &errortype);
 
 int main()
 {
-	static	ap_uint<ACTIVATION_PRECISION> OFM_IN[MAX_IMAGES][OFMDim1*OFMDim1][OFM_Channels1];
-	static	ap_uint<ACTIVATION_PRECISION> TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
-	//static	ap_uint<ACTIVATION_PRECISION> TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
-	stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > input_stream("input_stream");
-	stream<ap_uint<(OFM_Channels1-NUM_RED*(REDF-1))*ACTIVATION_PRECISION> > output_stream("output_stream");
+	static	TA OFM_IN[MAX_IMAGES][OFMDim1*OFMDim1][OFM_Channels1];
+	static	TA TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
+	//static	TA TEST[MAX_IMAGES][OFMDim1][OFMDim1][OFM_Channels1];
+	stream<hls::vector<TA, OFM_Channels1> > input_stream("input_stream");
+	stream<hls::vector<TA, OFM_Channels1-NUM_RED*(REDF-1)> > output_stream("output_stream");
 	int ch_pointer = 0;
 	int numTriplets = sizeof(PARAM::red_ch_index)/sizeof(PARAM::red_ch_index[0]);
 
@@ -85,14 +86,13 @@ int main()
 	for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
 		for (unsigned int oy = 0; oy < OFMDim1; oy++) {
 			for (unsigned int ox = 0; ox < OFMDim1; ox++) {
-				ap_uint<ACTIVATION_PRECISION*OFM_Channels1> ofm_in_channel = 0;
+        hls::vector<TA, OFM_Channels1> ofm_in_channel;
 				ch_pointer = 0;
 				for(unsigned int channel = 0; channel < OFM_Channels1; channel++)
 				{
-					ap_uint<ACTIVATION_PRECISION> input = (ap_uint<ACTIVATION_PRECISION>)(counter);
+					TA input = (TA)(counter);
 					OFM_IN[n_image][oy*OFMDim1+ox][channel]= input;
-					ofm_in_channel = ofm_in_channel >> ACTIVATION_PRECISION;
-					ofm_in_channel(OFM_Channels1*ACTIVATION_PRECISION-1,(OFM_Channels1-1)*ACTIVATION_PRECISION)=input;
+          ofm_in_channel[channel] = input;
 					TEST[n_image][ox][oy][channel]=input;
 					//cout << "input: " << input << endl;
 					// Check if the current channel needs to be triplicated
@@ -129,15 +129,15 @@ int main()
 	// Perform test which checks redundant channels
 	Testbench_tmrc_stmr(input_stream, output_stream, MAX_IMAGES, errortype);
 
-	ap_uint<INPUT_PRECISION> TESTIMAGE[1][IFMDim1*IFMDim1][IFM_Channels1];
+	TI TESTIMAGE[1][IFMDim1*IFMDim1][IFM_Channels1];
 	int err_counter = 0, err_perimage=0;
-	ap_uint<ACTIVATION_PRECISION> out_chan;
+	TA out_chan;
 	int ch_conv = 0;
 	// Loop of batch of images
 	for (unsigned int n_image = 0; n_image < MAX_IMAGES; n_image++) {
 
 		cout << "Image " << n_image << endl;
-		ap_uint<(OFM_Channels1-NUM_RED*(REDF-1))*ACTIVATION_PRECISION> outElem;
+    hls::vector<TA, OFM_Channels1-NUM_RED*(REDF-1)> outElem;
 		cout << "TMRC outputs (applying redundancy check): " << endl;
 		cout << "Format: <OFM[Row][Column][Channel]>" << endl;
 		// Print output values
@@ -147,18 +147,18 @@ int main()
 				ch_pointer = 0;
 				ch_conv = 0;
 				for (unsigned int ch = 0; ch < (OFM_Channels1-NUM_RED*(REDF-1)); ch++) {
-					ap_uint<ACTIVATION_PRECISION> EXP = TEST[n_image][ox][oy][ch_conv];// + e * OFM_Channels1];
-					out_chan(ACTIVATION_PRECISION-1,0) = outElem((ch + 1)*ACTIVATION_PRECISION-1,ch*ACTIVATION_PRECISION);
+					TA EXP = TEST[n_image][ox][oy][ch_conv];// + e * OFM_Channels1];
+          out_chan = outElem[ch];
 					//std::cout << "OFM[" << ox << "][" << oy << "][" << ch << "]: " << outElem((ch+1)*ACTIVATION_PRECISION-1, ch*ACTIVATION_PRECISION) << std::endl;
 				
 					// red_ch_index points to the channel index of the OFM which includes triplications.
 					// For example, for an original OFM with 3 channels, having triplicated the second and third, the indexes are 1 and 2. red_ch_index
 					if ((PARAM::red_ch_index[ch_pointer]-2*ch_pointer) == ch) {
 
-						ap_uint<ACTIVATION_PRECISION> EXP1 = TEST[n_image][ox][oy][ch_conv];// + e * OFM_Channels1];
-						ap_uint<ACTIVATION_PRECISION> EXP2 = TEST[n_image][ox][oy][ch_conv+1];// + e * OFM_Channels1];
-						ap_uint<ACTIVATION_PRECISION> EXP3 = TEST[n_image][ox][oy][ch_conv+2];// + e * OFM_Channels1];
-						ap_uint<ACTIVATION_PRECISION> MAJ;
+						TA EXP1 = TEST[n_image][ox][oy][ch_conv];// + e * OFM_Channels1];
+						TA EXP2 = TEST[n_image][ox][oy][ch_conv+1];// + e * OFM_Channels1];
+						TA EXP3 = TEST[n_image][ox][oy][ch_conv+2];// + e * OFM_Channels1];
+						TA MAJ;
 
 						if (INJ == false) {
 							MAJ = EXP1;

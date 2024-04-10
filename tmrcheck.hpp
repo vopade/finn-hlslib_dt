@@ -33,6 +33,7 @@
  /******************************************************************************
  *
  *  Authors: Timoteo Garcia Bertoa <timoteog@xilinx.com>
+ *         Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  \file tmrcheck.hpp
  *
@@ -53,7 +54,7 @@
  * being this channel one which contains valid data. A flag is also available to watch the character of the error detected,
  * either all channels in a triplication are different, or just one.
  *
- * \tparam InW              Input data width, activation precision
+ * \tparam TA               Input type (activation)
  * \tparam OFMChannels      Number of Output Feature Map channels, including triplications
  * \tparam NUM_RED          Number of redundancies (or triplicated channels)
  * \tparam REDF             Redundancy factor (3 to triplicate)
@@ -67,20 +68,19 @@
  * \param red_ch_index      Array of redundant triplets' indexes. Each position stores the first triplicated channel index of a triplet
  */
 
-template<unsigned int InW,
+template<typename TA,
          unsigned int OFMChannels,
          unsigned int NUM_RED,
          unsigned int REDF,
          unsigned int OFMDim,
          unsigned int MAX_CH_WIDTH>
-void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
-              hls::stream<ap_uint<InW*(OFMChannels-NUM_RED*(REDF-1))>> &out,
+void TMRCheck(hls::stream<hls::vector<TA, OFMChannels> > & in,
+              hls::stream<hls::vector<TA, OFMChannels-NUM_RED*(REDF-1)> > & out,
               ap_uint<2> &errortype,
               ap_uint<OFMChannels> channel_mask,
               ap_uint<MAX_CH_WIDTH> red_ch_index[NUM_RED]) {
-
 #pragma HLS ARRAY_PARTITION variable=red_ch_index complete dim=0
-    ap_uint<InW*OFMChannels> input;
+    hls::vector<TA, OFMChannels> input;
 
     // Number of channels without triplications
     constexpr unsigned int OFMChannelsTMR = (OFMChannels-NUM_RED*(REDF-1));
@@ -92,9 +92,10 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
 
         // Read input stream
         input = in.read();
-
-        ap_uint<InW*NUM_RED> tmr_out = {0};
-        ap_uint<InW*OFMChannelsTMR> out_aux = {0};
+        hls::vector<TA, NUM_RED> tmr_out;
+        unsigned tmrOutCtr = 0;
+        unsigned outOuxCtr = 0;
+        hls::vector<TA, OFMChannelsTMR> out_aux;
         ap_uint<2> numerrors[NUM_RED];
 #pragma HLS ARRAY_PARTITION variable=numerrors complete dim=0
 
@@ -109,8 +110,8 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
             // CompareLoop: performs comparisons between PE0, PE1, PE2
             for(unsigned int y = 0; y < REDF; y++){
                 for(unsigned int x = y+1; x < REDF; x++){
-                    if( (input((idx+y+1)*InW-1, (idx+y)*InW)) == (input((idx+x+1)*InW-1, (idx+x)*InW)) ){
-                        tmr_out((i+1)*InW-1, i*InW) = input((idx+x+1)*InW-1, (idx+x)*InW);
+                    if( input[idx+y] == input[idx+x] ){
+                        tmr_out[i] = input[idx+x];
                     } else {
                         numerrors[i]++;
                         if(numerrors[i] == REDF){
@@ -118,7 +119,7 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
                         } else {
                             errortype |= (ap_uint<2>)0b1;
                         }
-                        tmr_out((i+1)*InW-1, i*InW) = input((idx+1)*InW-1, idx*InW);
+                        tmr_out[i] = input[idx];
                     }
                 }
             } // end CompareLoop
@@ -142,20 +143,18 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
             
             // If it is one of the first triplicated, forward the TMR check output, which contains valid data
             if(compute[k]){
-                out_aux = out_aux >> InW;
-                out_aux(OFMChannelsTMR*InW-1, (OFMChannelsTMR-1)*InW) = tmr_out(InW-1, 0);
-                tmr_out = tmr_out >> InW;
+                out_aux[outOuxCtr] = tmr_out[tmrOutCtr];
+                tmrOutCtr++;
+                outOuxCtr++;
             // If it is not a first triplicated channel, check if it is a triplicated or not using mask
             } else if((channel_mask & (unitL << k)) != 0){
                 ; // Nothing to do, skip triplicated channel
             // If it is a not triplicated channel, forward the input data
             } else {
-                out_aux = out_aux >> InW;
-                out_aux(OFMChannelsTMR*InW-1, (OFMChannelsTMR-1)*InW) = input((k+1)*InW-1, k*InW);
+                out_aux[outOuxCtr] = input[k];
+                outOuxCtr++;
             }
-
         } // end ChannelLoop
-
         out.write(out_aux);
     } // end CheckLoop
 } // end TMRCheck
@@ -168,7 +167,7 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
  * being this channel one which contains valid data. A flag is also available to watch the character of the error detected,
  * either all channels in a triplication are different, or just one.
  *
- * \tparam InW              Input data width, activation precision
+ * \tparam TA               Input type (activation)
  * \tparam OFMChannels      Number of Output Feature Map channels, including triplications
  * \tparam NUM_RED          Number of redundancies (or triplicated channels)
  * \tparam REDF             Redundancy factor (3 to triplicate)
@@ -183,21 +182,21 @@ void TMRCheck(hls::stream<ap_uint<InW*OFMChannels>> &in,
  * \param numReps           Number of time the function has to be repeatedly executed (e.g. number of images)
  */
 
-template<unsigned int InW,
+template<typename TA,
          unsigned int OFMChannels,
          unsigned int NUM_RED,
          unsigned int REDF,
          unsigned int OFMDim,
          unsigned int MAX_CH_WIDTH>
-void TMRCheck_Batch(hls::stream<ap_uint<InW*OFMChannels>> &in,
-                    hls::stream<ap_uint<InW*(OFMChannels-NUM_RED*(REDF-1))>> &out,
+void TMRCheck_Batch(hls::stream<hls::vector<TA, OFMChannels> > & in,
+              hls::stream<hls::vector<TA, OFMChannels-NUM_RED*(REDF-1)> > & out,
                     ap_uint<2> &errortype,
                     ap_uint<OFMChannels> channel_mask,
                     ap_uint<MAX_CH_WIDTH> red_ch_index[NUM_RED],
                     unsigned int numReps) {
 
     for (unsigned int rep = 0; rep < numReps; rep++) {
-        TMRCheck<InW, OFMChannels, NUM_RED, REDF, OFMDim, MAX_CH_WIDTH>(in, out, errortype, channel_mask, red_ch_index);
+        TMRCheck<TA, OFMChannels, NUM_RED, REDF, OFMDim, MAX_CH_WIDTH>(in, out, errortype, channel_mask, red_ch_index);
     }
 }
 

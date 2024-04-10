@@ -32,8 +32,9 @@
 /******************************************************************************
  *
  *  Authors: Timoteo Garcia Bertoa <timoteog@xilinx.com>
+ *           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
- *  \file conv_stmr_top.cpp
+ *  \file tmrc_stmr_top.cpp
  *
  *  HLS Top function with a single tmrc layer for unit testing
  *
@@ -52,12 +53,12 @@ using namespace hls;
 #include "data/memdata_tmrc.h"
 #include "data/config_tmrc.h"
 
-void Testbench_tmrc_stmr(stream<ap_uint<OFM_Channels1*ACTIVATION_PRECISION> > & in,
-						 stream<ap_uint<(OFM_Channels1-NUM_RED*(REDF-1))*ACTIVATION_PRECISION> > & out,
+void Testbench_tmrc_stmr(stream<hls::vector<TA, OFM_Channels1> > & in,
+						 stream<hls::vector<TA, OFM_Channels1-NUM_RED*(REDF-1)> > & out,
 						 unsigned int numReps,
 						 ap_uint<2> &errortype){
 #pragma HLS DATAFLOW
 
 	//Error check
-	TMRCheck_Batch<ACTIVATION_PRECISION, OFM_Channels1, NUM_RED, REDF, OFMDim1, MAX_CH_WIDTH>(in, out, errortype, PARAM::channel_mask, PARAM::red_ch_index, numReps);
+	TMRCheck_Batch<TA, OFM_Channels1, NUM_RED, REDF, OFMDim1, MAX_CH_WIDTH>(in, out, errortype, PARAM::channel_mask, PARAM::red_ch_index, numReps);
 }
