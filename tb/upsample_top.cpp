@@ -33,6 +33,7 @@
  *
  *  Authors:  erling on 5/10/21.
  *  			Giulio Gambardella <giuliog@xilinx.com>
+ *  			Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  \file upsample_top.cpp
  *  
@@ -43,14 +44,11 @@
 
 #include <hls_stream.h>
 using namespace hls;
-
 #include "ap_int.h"
 #include "bnn-library.h"
-
 #include "data/upsample_config.h"
+#include <hls_vector.h>
 
-
-
-void Testbench_upsample(stream<ap_uint<PRECISION * FM_CHANNELS>> &in, stream<ap_uint<PRECISION * FM_CHANNELS>> &out) {
-	UpsampleNearestNeighbour<OFMDIM, IFMDIM, FM_CHANNELS, ap_uint<PRECISION> >(in,out);
+void Testbench_upsample(stream<hls::vector<T,FM_CHANNELS>> &in, stream<hls::vector<T,FM_CHANNELS>> &out) {
+	UpsampleNearestNeighbour<OFMDIM, IFMDIM, FM_CHANNELS, T >(in,out);
 }

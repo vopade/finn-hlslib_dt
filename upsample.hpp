@@ -34,6 +34,7 @@
  *
  *  Authors: Giulio Gambardella <giuliog@xilinx.com>
  *  		    erling on 5/10/21.
+ *  		    Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *
  *  Library of templated HLS functions for QNN deployment. 
@@ -46,7 +47,7 @@
 
 #include <ap_int.h>
 #include <hls_stream.h>
-
+#include <hls_vector.h>
 
 /**
  * \brief Upsampling with the Nearest Neighbour algorithm. Works with square feature maps
@@ -64,58 +65,54 @@ template<unsigned int OFMDim,
 	unsigned int NumChannels,
 	typename In_t>
 void UpsampleNearestNeighbour(
-        hls::stream<ap_uint<NumChannels * In_t::width>> & in,
-        hls::stream<ap_uint<NumChannels * In_t::width>> & out
+        hls::stream<hls::vector<In_t,NumChannels>> & in,
+        hls::stream<hls::vector<In_t,NumChannels>> & out
 ) {
   static_assert(OFMDim > IFMDim, "");
 
-  constexpr unsigned int scale_factor = OFMDim/IFMDim;
-  constexpr unsigned int Padding = OFMDim % IFMDim;
+  constexpr unsigned int scale_factor = OFMDim / IFMDim;
+  constexpr unsigned int Padding = OFMDim % IFMDim; // remainder
   // Padding might be asymmetrical
-  constexpr unsigned int PaddingDown = Padding/2;
+  constexpr unsigned int PaddingDown = Padding / 2;
   constexpr unsigned int PaddingUp = Padding - PaddingDown;
   // Padding might be asymmetrical
-  constexpr unsigned int PaddingRight = Padding/2;
+  constexpr unsigned int PaddingRight = Padding / 2;
   constexpr unsigned int PaddingLeft = Padding - PaddingRight;
 
-  ap_uint<NumChannels * In_t::width> outData, inData;
-  ap_uint<NumChannels * In_t::width> RowBuf[IFMDim];
+  hls::vector <In_t, NumChannels> outData, inData;
+  hls::vector <In_t, NumChannels> RowBuf[IFMDim];
   int count_row = -PaddingUp; // Counter used to understand whether reading (and buffering) a row or not - Made in order to avoid modulo operations
   for (unsigned int y = 0; y < OFMDim; y++) {
-	  for (unsigned int x = 0; x < OFMDim; x++) {
+    for (unsigned int x = 0; x < OFMDim; x++) {
 #pragma HLS pipeline style=flp II=1
-		bool read_row = (y ==0) || count_row==scale_factor;
-		if ((x < IFMDim) && read_row)
-		{
-			inData = in.read();
-			RowBuf[x] = inData;
-		}
-		// Padding Cols
-		if(x < PaddingLeft){
-			outData = RowBuf[0];
-		}
-		else if (x >= (OFMDim - PaddingRight)){
-			outData = RowBuf[IFMDim-1];
+      bool read_row = (y == 0) || count_row == scale_factor;
+      if ((x < IFMDim) && read_row) {
+        inData = in.read();
+        RowBuf[x] = inData;
+      }
+      // Padding Cols
+      if (x < PaddingLeft) {
+        outData = RowBuf[0];
+      } else if (x >= (OFMDim - PaddingRight)) {
+        outData = RowBuf[IFMDim - 1];
 
-		}
-		// Padding Rows
-		else if(y < PaddingUp || y >= (OFMDim - PaddingDown)){
-			outData = RowBuf[(x-PaddingLeft)/scale_factor];
-		}
-		// No Padding
-		else{
-
-			outData = RowBuf[(x-PaddingLeft)/scale_factor];
-		}
-		//std::cout << outData << " " ;
-		out.write(outData);
-	  }// end for y
-	  //std::cout << std::endl;
-	  count_row++;
-	  if (count_row > scale_factor)
-		  count_row =1;
+      }
+        // Padding Rows
+      else if (y < PaddingUp || y >= (OFMDim - PaddingDown)) {
+        outData = RowBuf[(x - PaddingLeft) / scale_factor];
+      }
+        // No Padding
+      else {
+        outData = RowBuf[(x - PaddingLeft) / scale_factor];
+      }
+      //std::cout << outData << " " ;
+      out.write(outData);
+    }// end for y
+    //std::cout << std::endl;
+    count_row++;
+    if (count_row > scale_factor)
+      count_row = 1;
   } // end for x
-
 }
 
 
@@ -136,8 +133,8 @@ template<unsigned int OFMDim,
 	unsigned int NumChannels,
 	typename In_t>
 void UpsampleNearestNeighbour_Batch(
-        hls::stream<ap_uint<NumChannels * In_t::width>> & in,
-        hls::stream<ap_uint<NumChannels * In_t::width>> & out,
+        hls::stream<hls::vector<In_t,NumChannels>> & in,
+        hls::stream<hls::vector<In_t,NumChannels>> & out,
 		unsigned int numReps) {
   for (unsigned int rep = 0; rep < numReps; rep++) {
 	UpsampleNearestNeighbour<OFMDim, IFMDim, NumChannels, In_t>(in, out);
@@ -162,13 +159,13 @@ template<
 	typename  In_t			// Per-channel input type
 >
 void UpsampleNearestNeighbour_1D(
-        hls::stream<ap_uint<NumChannels * In_t::width>> &src,
-        hls::stream<ap_uint<NumChannels * In_t::width>> &dst
+        hls::stream<hls::vector<In_t, NumChannels>> &src,
+        hls::stream<hls::vector<In_t, NumChannels>> &dst
 ) {
 	static_assert(OFMDim % IFMDim == 0, "OFMDim must be a whole multiple of IFMDim.");
 	constexpr unsigned  REPS = OFMDim / IFMDim;
 
-	using  buf_t = ap_uint<NumChannels * In_t::width>;
+  using  buf_t = hls::vector<In_t, NumChannels>;
 	buf_t     buf;
 	unsigned  rep = 0;
 	for(unsigned  i = 0; i < OFMDim; i++) {

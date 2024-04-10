@@ -34,10 +34,9 @@
 #include "upsample.hpp"
 #include "upsample_1d_top.hpp"
 
-
 void upsample_1d_top(
-	hls::stream<ap_uint<NumChannels * T::width>>  &src,
-	hls::stream<ap_uint<NumChannels * T::width>>  &dst
+  hls::stream<hls::vector<T, NumChannels>>  &src,
+  hls::stream<hls::vector<T, NumChannels>>  &dst
 ) {
 #pragma HLS interface AXIS port=src
 #pragma HLS interface AXIS port=dst

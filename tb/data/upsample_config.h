@@ -4,11 +4,10 @@
 
 #ifndef UPSAMPLE_CONFIG_H
 #define UPSAMPLE_CONFIG_H
-
-#define PRECISION 8
 #define FM_CHANNELS 16
 #define OFMDIM 7
 #define IFMDIM 2
+using T = ap_uint<8>;
 
 
 #endif //FINN_HLSLIB_UPSAMPLE_CONFIG_H

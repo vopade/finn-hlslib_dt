@@ -30,12 +30,14 @@
  *******************************************************************************
  * @brief	Top-level for upsample_1d layer test.
  * @author	Thomas B. Preusser <thomas.preusser@amd.com>
+ *          Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *******************************************************************************/
 #ifndef MAX_NORM_TOP_HPP
 #define MAX_NORM_TOP_HPP
 
 #include <ap_int.h>
 #include <hls_stream.h>
+#include <hls_vector.h>
 
 constexpr unsigned  IFMDim = 173;
 constexpr unsigned  OFMDim = 3*IFMDim;
@@ -43,7 +45,7 @@ constexpr unsigned  NumChannels = 2;
 using  T = ap_uint<4>;
 
 void upsample_1d_top(
-	hls::stream<ap_uint<NumChannels * T::width>>  &src,
-	hls::stream<ap_uint<NumChannels * T::width>>  &dst
+  hls::stream<hls::vector<T, NumChannels>>  &src,
+  hls::stream<hls::vector<T, NumChannels>>  &dst
 );
 #endif

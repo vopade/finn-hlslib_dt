@@ -32,46 +32,49 @@
  * @author	Thomas B. Preusser <thomas.preusser@amd.com>
  *******************************************************************************/
 #include "upsample_1d_top.hpp"
-
 #include <iostream>
 #include <random>
 
-
 int main() {
-	using  TT = ap_uint<NumChannels * T::width>;
+  using TT = hls::vector<T, NumChannels>;
+  constexpr unsigned TTwidth = T::width * NumChannels;
 
-	unsigned  errors = 0; {
-		std::default_random_engine  rnd;
-		std::uniform_int_distribution<>  dist(1, (1<<TT::width)-1);
+  unsigned errors = 0;
+  {
+    std::default_random_engine rnd;
+    std::uniform_int_distribution<> dist(1, (1<< TTwidth)-1);
 
-		for(unsigned  k = 0; k < 7; k++) {
-			hls::stream<TT>  src("src");
-			hls::stream<TT>  dst("dst");
-			TT  ref[IFMDim];
+    for(unsigned k = 0; k < 7; k++) {
+      hls::stream<TT> src("src");
+      hls::stream<TT> dst("dst");
+      TT ref[IFMDim];
 
-			// Feed an input vector
-			for(unsigned  i = 0; i < IFMDim; i++) {
-				TT const  x = dist(rnd);
-				src.write(x);
-				ref[i] = x;
-			}
+      // Feed an input vector
+      for(unsigned i = 0; i < IFMDim; i++) {
+        hls::vector <T, NumChannels> xVec;
+        for (unsigned j = 0; j < NumChannels; j++) {
+          T x = T(dist(rnd));
+          xVec[j] = x;
+          ref[i][j] = x;
+        }
+        src.write(xVec);
+      }
 
-			// Execute upscale
-			upsample_1d_top(src, dst);
-			if(!src.empty())  errors++;
+      // Execute upscale
+      upsample_1d_top(src, dst);
+      if(!src.empty()) errors++;
 
-			// Verify the result
-			for(unsigned  i = 0; i < OFMDim; i++) {
-				TT  y;
-				if(!dst.read_nb(y) || (y != ref[i*IFMDim/OFMDim]))  errors++;
-			}
-			if(!dst.empty())  errors++;
-		}
-	}
+      for(unsigned  i = 0; i < OFMDim; i++) {
+        TT  y;
+        if(!dst.read_nb(y) || (y != ref[i*IFMDim/OFMDim]))  errors++;
+      }
+      if(!dst.empty())  errors++;
 
-	if(errors == 0)  return  0;
-	else {
-		std::cout << errors << " errors." << std::endl;
-		return  1;
-	}
+      if(errors == 0) return 0;
+      else {
+        std::cout << errors << " errors." << std::endl;
+        return 1;
+      }
+    }
+  }
 }
