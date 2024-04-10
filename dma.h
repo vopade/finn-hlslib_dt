@@ -54,22 +54,24 @@
 /*!
  * \brief DMA block accessing AXI4 memory and output HLS streams
  *
- * 
+ *
+ * \tparam T Datatype of the AXI4 memory pointer and the output HLS stream
  * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
  * \tparam numBytes Number of bytes to be read from the memory
  *
  * \param in Input memory pointer
  * \param out Output HLS stream
  */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Mem2Stream(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out);
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Mem2Stream(T * in, hls::stream<T> & out);
 
 /*!
  * \brief DMA block accessing AXI4 memory and output HLS streams multiple times
  * 
  * It basically calls Mem2Stream function multiple times, possibly with bigger sizes so to increase
  * the burst size
- * 
+ *
+ * \tparam T Datatype of the AXI4 memory pointer and the output HLS stream
  * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
  * \tparam numBytes Number of bytes to be read from the memory
  *
@@ -77,21 +79,21 @@ void Mem2Stream(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out)
  * \param out Output HLS stream
  * \param numReps Number of times the Stream2Mem function has to be called
  */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Mem2Stream_Batch(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out, const unsigned int numReps);
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Mem2Stream_Batch(T * in, hls::stream<T > & out, const unsigned int numReps);
 
 /*!
  * \brief DMA block writing HLS streams content in AXI4 pointed memory
  *
- * 
+ * \tparam T Datatype of the AXI4 memory pointer and the output HLS stream
  * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
  * \tparam numBytes Number of bytes to be read from the memory
  *
  * \param in Input HLS stream
  * \param out Output memory pointer
  */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Stream2Mem(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out);
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Stream2Mem(hls::stream<T> & in, T * out);
 
 /*!
  * \brief DMA block that accesses the external memory and outputs HLS streams multiple times
@@ -99,6 +101,7 @@ void Stream2Mem(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out)
  * It basically calls Mem2Stream function multiple times, possibly with bigger sizes so to increase
  * the burst size
  *
+ * \tparam T Datatype of the AXI4 memory pointer and the output HLS stream
  * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
  * \tparam numBytes Number of bytes to be read from the memory
  *
@@ -106,12 +109,12 @@ void Stream2Mem(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out)
  * \param out Output the generated HLS sream
  * \param numReps Number of times the Mem2Stream function has to be called
  */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Mem2Stream_Batch_external_wmem(ap_uint<DataWidth> * in,
-        hls::stream<ap_uint<DataWidth> > & out, const unsigned int numReps) {
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Mem2Stream_Batch_external_wmem(T * in,
+        hls::stream<T> & out, const unsigned int numReps) {
     unsigned int rep = 0;
     while (rep != numReps) {
-        Mem2Stream<DataWidth, numBytes>(&in[0], out);
+        Mem2Stream<T, DataWidth, numBytes>(&in[0], out);
         rep += 1;
     }
 }
@@ -121,7 +124,8 @@ void Mem2Stream_Batch_external_wmem(ap_uint<DataWidth> * in,
  * 
  * It basically calls Stream2Mem function multiple times, possibly with bigger sizes so to increase
  * the burst size
- * 
+ *
+ * \tparam T Datatype of the AXI4 memory pointer and the output HLS stream
  * \tparam DataWidth Width, in number of bits, of the AXI4 memory pointer and the output HLS stream
  * \tparam numBytes Number of bytes to be read from the memory
  *
@@ -129,36 +133,36 @@ void Mem2Stream_Batch_external_wmem(ap_uint<DataWidth> * in,
  * \param out Output memory pointer
  * \param numReps Number of times the Stream2Mem function has to be called
  */
-template<unsigned int DataWidth, unsigned int numBytes>
-void Stream2Mem_Batch(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out, const unsigned int numReps);
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Stream2Mem_Batch(hls::stream<T> & in, T * out, const unsigned int numReps);
 
-template<unsigned int DataWidth, unsigned int numBytes>
-void Mem2Stream(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out) {
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Mem2Stream(T * in, hls::stream<T> & out) {
   static_assert(DataWidth % 8 == 0, "");
   const unsigned int numWords = numBytes / (DataWidth / 8);
   static_assert(numWords != 0, "");
   for (unsigned int i = 0; i < numWords; i++) {
 #pragma HLS pipeline style=flp II=1
-    ap_uint<DataWidth> e = in[i];
+    T e = in[i];
     out.write(e);
   }
 }
 
 
-template<unsigned int DataWidth, unsigned int numBytes>
-void Stream2Mem(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out) {
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Stream2Mem(hls::stream<T> & in, T * out) {
   static_assert(DataWidth % 8 == 0, "");
   const unsigned int numWords = numBytes / (DataWidth / 8);
   static_assert(numWords != 0, "");
   for (unsigned int i = 0; i < numWords; i++) {
 #pragma HLS pipeline style=flp II=1
-    ap_uint<DataWidth> e = in.read();
-	out[i] = e;
+    T e = in.read();
+	  out[i] = e;
   }
 }
 
-template<unsigned int DataWidth, unsigned int numBytes>
-void Mem2Stream_Batch(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > & out, const unsigned int numReps) {
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Mem2Stream_Batch(T * in, hls::stream<T> & out, const unsigned int numReps) {
   const unsigned int indsPerRep = numBytes / (DataWidth / 8);
   unsigned int rep = 0;
   // make sure Mem2Stream does not get inlined here
@@ -167,19 +171,19 @@ void Mem2Stream_Batch(ap_uint<DataWidth> * in, hls::stream<ap_uint<DataWidth> > 
     unsigned int repsLeft = numReps - rep;
     if ((repsLeft & 0xF) == 0) {
       // repsLeft divisable by 16, read 16 images
-      Mem2Stream<DataWidth, numBytes * 16>(&in[rep * indsPerRep], out);
+      Mem2Stream<T, DataWidth, numBytes * 16>(&in[rep * indsPerRep], out);
       rep += 16;
     } else {
       // fallback, read single image
-      Mem2Stream<DataWidth, numBytes>(&in[rep * indsPerRep], out);
+      Mem2Stream<T, DataWidth, numBytes>(&in[rep * indsPerRep], out);
       rep += 1;
     }
   }
 }
 
 
-template<unsigned int DataWidth, unsigned int numBytes>
-void Stream2Mem_Batch(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> * out, const unsigned int numReps) {
+template<typename T, unsigned int DataWidth, unsigned int numBytes>
+void Stream2Mem_Batch(hls::stream<T> & in, T * out, const unsigned int numReps) {
   const unsigned int indsPerRep = numBytes / (DataWidth / 8);
   unsigned int rep = 0;
   // make sure Stream2Mem does not get inlined here
@@ -188,11 +192,11 @@ void Stream2Mem_Batch(hls::stream<ap_uint<DataWidth> > & in, ap_uint<DataWidth> 
     unsigned int repsLeft = numReps - rep;
     if ((repsLeft & 0xF) == 0) {
       // repsLeft divisable by 16, write 16 images
-      Stream2Mem<DataWidth, numBytes * 16>(in, &out[rep * indsPerRep]);
+      Stream2Mem<T, DataWidth, numBytes * 16>(in, &out[rep * indsPerRep]);
       rep += 16;
     } else {
       // fallback, write single image
-      Stream2Mem<DataWidth, numBytes>(in, &out[rep * indsPerRep]);
+      Stream2Mem<T, DataWidth, numBytes>(in, &out[rep * indsPerRep]);
       rep += 1;
     }
   }
