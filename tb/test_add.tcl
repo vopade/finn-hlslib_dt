@@ -30,20 +30,31 @@
  #
 ###############################################################################
 ###############################################################################
- # #
+ #
+ #  Authors: Giulio Gambardella <giuliog@xilinx.com>
+ #           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  # \file test-add.tcl
  #
  # Tcl script for HLS csim, synthesis and cosim of the add layer
  #
 ###############################################################################
-open_project hls-syn-add
-add_files add_top.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb" 
-add_files -tb add_tb.cpp -cflags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb" 
-set_top Testbench_add
-open_solution sol1
-set_part {xczu3eg-sbva484-1-i}
-create_clock -period 5 -name default
-csim_design
-csynth_design
-cosim_design
+
+# TI_, TO_, NUM_CHANNELS_, NUM_WORDS_, NUM_REPEAT_, OFFSET_
+# not used for testing since types as ap_ufixed<OUTPUT_WIDTH, OUTPUT_WIDTH, AP_TRN> cannot be passed yet
+set params {{float float 32 4 1 2}}
+
+foreach p $params {
+    delete_project hls-syn-add
+    open_project hls-syn-add
+    set compilerFlags "-std=c++14 -I$::env(FINN_HLS_ROOT) -I$::env(FINN_HLS_ROOT)/tb -DTI_=[lindex $p 0] -DTO_=[lindex $p 1] -DNUM_CHANNELS_=[lindex $p 2] -DNUM_WORDS_=[lindex $p 3] -DNUM_REPEAT_=\"[lindex $p 4]\" -DOFFSET_=\"[lindex $p 5]\""
+    add_files add_top.cpp -cflags $compilerFlags
+    add_files -tb add_tb.cpp -cflags $compilerFlags
+    set_top Testbench_add
+    open_solution sol1
+    set_part {xczu3eg-sbva484-1-i}
+    create_clock -period 5 -name default
+    csim_design
+    csynth_design
+    cosim_design
+}
 exit
