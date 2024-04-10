@@ -29,7 +29,7 @@
 #  ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 #############################################################################
-# @brief	Running the testbench for MaxNorm layer.
+# @brief	Running the testbench for 1D upsampling layer.
 # @author	Thomas B. Preusser <thomas.preusser@amd.com>
 #############################################################################
 open_project hls-syn-upsample_1d

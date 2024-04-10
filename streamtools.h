@@ -36,6 +36,7 @@
  *           Thomas B. Preusser <thomas.preusser@utexas.edu>
  *             Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
  *           Christoph Doehring <cdoehrin@xilinx.com>
+ *           Jonas Kuehle <jonas.kuehle@cs.hs-fulda.de>
  *
  *  @file stream-tools.h
  *
@@ -59,7 +60,7 @@
  * (NumTotal-NumAllowed) are consumed from input but not re-emitted from the output. 
  * Useful to remove padding 
  *
- * \tparam     DataWidth    Width, in number of bits, of the input and output stream
+ * \tparam     T            Datatype of the input and output stream
  * \tparam     NumAllowed   Number of words to pass through
  * \tparam     NumTotal     Total number of words (NumAllowed+NumDropped)
  *
@@ -67,22 +68,24 @@
  * \param      out          Output stream
  *
  */
-template<unsigned int DataWidth,    
+template<typename T,
 		unsigned int NumAllowed, 	
 		unsigned int NumTotal       
 >
-void StreamLimiter(hls::stream<ap_uint<DataWidth> > & in,
-		hls::stream<ap_uint<DataWidth> > & out) {
+void StreamLimiter(hls::stream<hls::vector<T, NumTotal>> & in,
+                   hls::stream<hls::vector<T, NumAllowed>> & out) {
   static_assert(NumTotal >= NumAllowed, "");
   unsigned int numLeft = NumAllowed;
+  hls::vector<T, NumTotal> e = in.read();
+  hls::vector<T, NumAllowed> e_out;
   for (unsigned int i = 0; i < NumTotal; i++) {
 #pragma HLS pipeline style=flp II=1
-    ap_uint<DataWidth> e = in.read();
     if (numLeft > 0) {
-      out.write(e);
+      e_out[i] = e[i],
       numLeft--;
     }
   }
+  out.write(e_out);
 }
 
 /**
@@ -101,14 +104,15 @@ void StreamLimiter(hls::stream<ap_uint<DataWidth> > & in,
  * \param      numReps      Number of times the StreamLimiter function has to be called
  *
  */
-template<unsigned int DataWidth,	
+template<typename T,
 		unsigned int NumAllowed, 	
 		unsigned int NumTotal       
 >
-void StreamLimiter_Batch(hls::stream<ap_uint<DataWidth> > & in,
-		hls::stream<ap_uint<DataWidth> > & out, unsigned int numReps) {
+void StreamLimiter_Batch(hls::stream<hls::vector<T, NumTotal>> & in,
+                         hls::stream<hls::vector<T, NumAllowed>> & out,
+                         unsigned int numReps) {
   for (unsigned int rep = 0; rep < numReps; rep++) {
-    StreamLimiter<DataWidth, NumAllowed, NumTotal>(in, out);
+    StreamLimiter<T, NumAllowed, NumTotal>(in, out);
   }
 }
 
@@ -424,9 +428,12 @@ void FMPadding_Batch(
  *
  * Used to change number of elements in a vector inside a stream, without any loss of data in the procedure. 
  *
- * \tparam     NI      		Number of elements in input stream
- * \tparam     NO      		Number of elements in output stream
  * \tparam     NumInWords   Number of input words to process
+ * \tparam	   TI			      Input datatype
+ * \tparam	   TO			      Output datatype
+ * \tparam     NI      		  Number of elements in input stream
+ * \tparam     NO      		  Number of elements in output stream
+
  *
  * \param      in           Input stream
  * \param      out          Output stream
@@ -434,37 +441,38 @@ void FMPadding_Batch(
  *
  */
 template<
-	unsigned NumInWords,	
-	typename T,	
+	unsigned NumInWords,
+	typename TI,
+  typename TO,
 	unsigned NI,
-	unsigned NO 
+	unsigned NO
 >
 void StreamingDataWidthConverterVector_Batch(
-	hls::stream<hls::vector<T, NI>> & in,
-	hls::stream<hls::vector<T, NO>> & out, 
+	hls::stream<hls::vector<TI, NI>> & in,
+	hls::stream<hls::vector<TO, NO>> & out,
 	const unsigned numReps
 ) {
-	    static_assert((NI % NO == 0) || (NO % NI == 0), "");
+    static_assert((NI % NO == 0) || (NO % NI == 0), "");
 
 		const unsigned totalIters = NumInWords * NI * numReps;
 
 		ap_uint<clog2(NI+1)> iCtr = 0; // input vector element counter. TODO: optimize "+1-bit" away by rearranging counters
 		ap_uint<clog2(NO+1)> oCtr = 0; // output vector element counter
-		hls::vector<T, NI> vecIn;
-		hls::vector<T, NO> vecOut;
+		hls::vector<TI, NI> vecIn;
+		hls::vector<TO, NO> vecOut;
 
 		for (unsigned i = 0; i < totalIters; i++){
 			if(iCtr == 0){
 				vecIn = in.read();
 			}
 			// copy from input vector to output vector
-			vecOut[oCtr] = vecIn[iCtr]; 
+			vecOut[oCtr] = vecIn[iCtr];
 			iCtr++;
 			oCtr++;
 
-			if(oCtr == NO){ 
-				out.write(vecOut);  
-			}			
+			if(oCtr == NO){
+				out.write(vecOut);
+			}
 
 			// reset counter if vector was read completely
 			if(iCtr == NI){
@@ -476,15 +484,59 @@ void StreamingDataWidthConverterVector_Batch(
 	}
 }
 
+
 /**
  * \brief   Stream Data Width Converter - Converts the width of the input stream in the output stream
  *
- * Used to upscale or downscale a stream, without any loss of data in the procedure. 
+ * Used to change number of elements in a vector inside a stream, without any loss of data in the procedure.
+ *
+ * \tparam     NumInWords   Number of input words to process
+ * \tparam	   TI			      Input datatype
+ * \tparam	   TO			      Output datatype
+ * \tparam     NI      		  Number of elements in input stream
+ * \tparam     NO      		  Number of elements in output stream
+
+ *
+ * \param      in           Input stream
+ * \param      out          Output stream
+ * \param      numReps      Number of times the function has to be called
+ *
+ */
+template<
+        unsigned NumInWords,
+        typename TI,
+        typename TO,
+        unsigned NO
+>
+void StreamingDataWidthConverterScalarToVector_Batch(
+        hls::stream<TI> & in,
+        hls::stream<hls::vector<TO, NO>> & out,
+        const unsigned numReps
+) {
+  const unsigned totalIters = NumInWords * numReps;
+  ap_uint<clog2(NO+1)> oCtr = 0; // output vector element counter
+  hls::vector <TO, NO> vecOut;
+
+  for (unsigned i = 0; i < totalIters; i++) {
+    vecOut[oCtr] = in.read();
+    oCtr++;
+    if (oCtr == NO) {
+      out.write(vecOut);
+      oCtr = 0;
+    }
+  }
+}
+
+
+/**
+ * \brief   Stream Data Width Converter - Converts the width of the input stream in the output stream
+ *
+ * Used to upscale or downscale a stream, without any loss of data in the procedure.
  * For downscaling (InWidth > OutWidth), InWidth has to be a multiple of OutWidth.
  * For upscaling (InWidth < OutWidth), OutWidth has to be a multiple of InWidth.
  *
  * \tparam     InWidth      Width, in number of bits, of the input stream
- * \tparam     OutWidth     Width, in number of bits, of the output stream 
+ * \tparam     OutWidth     Width, in number of bits, of the output stream
  * \tparam     NumInWords   Number of input words to process
  *
  * \param      in           Input stream
@@ -492,9 +544,10 @@ void StreamingDataWidthConverterVector_Batch(
  * \param      numReps      Number of times the function has to be called
  *
  */
-template<unsigned int InWidth,		
-		unsigned int OutWidth,		
-		unsigned int NumInWords		
+
+template<unsigned int InWidth,
+		unsigned int OutWidth,
+		unsigned int NumInWords
 >
 void StreamingDataWidthConverter_Batch(hls::stream<ap_uint<InWidth> > & in,
 		hls::stream<ap_uint<OutWidth> > & out, const unsigned int numReps) {
@@ -640,20 +693,19 @@ void StreamingDataWidthConverterNoMultiple(
  * \param      out2         Output stream II
  *
  */
-template<unsigned int DataWidth,
-		unsigned int NumTotal
->
-void DuplicateStreams(hls::stream<ap_uint<DataWidth> > & in, hls::stream<ap_uint<DataWidth> > & out1,
-		hls::stream<ap_uint<DataWidth> > & out2) {
-	
-	for (unsigned int i = 0; i < NumTotal; i++) {
+
+template<typename T, unsigned int NumTotal >
+void DuplicateStreams(hls::stream<T> & in, hls::stream<T> & out1,
+                      hls::stream<T> & out2) {
+
+    for (unsigned int i = 0; i < NumTotal; i++) {
 #pragma HLS pipeline style=flp II=1
-		ap_uint<DataWidth> e = in.read();
-		
-		out1.write(e);
-		out2.write(e);
-	}
+        T e = in.read();
+        out1.write(e);
+        out2.write(e);
+    }
 }
+
 
 /**
  * \brief   Batch Stream Duplicator - Reads in a stream multiple times and writes the data into two identical streams
@@ -669,13 +721,11 @@ void DuplicateStreams(hls::stream<ap_uint<DataWidth> > & in, hls::stream<ap_uint
  * \param      numReps      Number of frames / images
  *
  */
-template<unsigned int DataWidth,
-		unsigned int NumTotal
->
-void DuplicateStreams_Batch(hls::stream<ap_uint<DataWidth> > & in, hls::stream<ap_uint<DataWidth> > & out1,
-		hls::stream<ap_uint<DataWidth> > & out2, const unsigned int numReps) {
+template<typename T, unsigned int NumTotal >
+void DuplicateStreams_Batch(hls::stream<T> & in, hls::stream<T> & out1,
+		hls::stream<T> & out2, const unsigned int numReps) {
 	for (unsigned int image = 0; image < numReps; image++) {
-		DuplicateStreams<DataWidth, NumTotal>(in, out1, out2);
+		DuplicateStreams<T, NumTotal>(in, out1, out2);
 	}
 }
 
@@ -683,9 +733,9 @@ void DuplicateStreams_Batch(hls::stream<ap_uint<DataWidth> > & in, hls::stream<a
  * \brief   Element-Wise Addition - Reads in data elements from two streams and writes the sum of these elements to an output
  *
  * \tparam     NumChannels  Amount of channels of the streams
- * \tparam     In1_t        First operand datatype
- * \tparam     In2_t        Second operand datatype 
- * \tparam     Out_t        Datatype of the accumulation output 
+ * \tparam     In_t1        First operand datatype
+ * \tparam     In_t2        Second operand datatype
+ * \tparam     Out_t        Datatype of the accumulation output
  * \tparam     NumTotal     Total number of words in the input streams
  * \tparam     offset       Offset value for the accumulation
  *
@@ -696,25 +746,25 @@ void DuplicateStreams_Batch(hls::stream<ap_uint<DataWidth> > & in, hls::stream<a
  */
 
 template <unsigned int NumChannels,
-          typename In1_t,
-          typename In2_t,
+          typename In_t1,
+          typename In_t2,
           typename Out_t,
           unsigned int NumTotal, 
           int offset = 0>
-void AddStreams(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls::stream<ap_uint<NumChannels * In2_t::width>> &in2,
-                hls::stream<ap_uint<NumChannels * Out_t::width>> &out) {
+void AddStreams(hls::stream<hls::vector<In_t1, NumChannels>> &in1, hls::stream<hls::vector<In_t2, NumChannels>> &in2,
+                hls::stream<hls::vector<Out_t, NumChannels>> &out) {
 
   for (unsigned int i = 0; i < NumTotal; i++) {
 #pragma HLS pipeline style=flp II=1
-    ap_uint<NumChannels * In1_t::width> e1 = in1.read();
-    ap_uint<NumChannels * In2_t::width> e2 = in2.read();
-    ap_uint<NumChannels * Out_t::width> e;
+    hls::vector<In_t1, NumChannels> e1 = in1.read();
+    hls::vector<In_t2, NumChannels> e2 = in2.read();
+    hls::vector<Out_t, NumChannels> e;
     for (unsigned int j = 0; j < NumChannels; j++) {
 #pragma HLS UNROLL
-      In1_t op1 = e1((j + 1) * In1_t::width - 1, j * In1_t::width);
-      In2_t op2 = e2((j + 1) * In2_t::width - 1, j * In2_t::width);
+      In_t2 op1 = e1[j];
+      In_t2 op2 = e2[j];
       Out_t sum = op1 + op2 + offset;
-      e((j + 1) * Out_t::width - 1, j * Out_t::width) = sum;
+      e[j] = sum;
     }
     out.write(e);
   }
@@ -727,9 +777,9 @@ void AddStreams(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls::stre
  * Used to implement point-wise addition in Resnet-50 for multiple images
  *
  * \tparam     NumChannels  Amount of channels of the streams
- * \tparam     In1_t        First operand datatype
- * \tparam     In2_t        Second operand datatype 
- * \tparam     Out_t        Datatype of the accumulation output 
+ * \tparam     In_t1        First operand datatype
+ * \tparam     In_t2        Second operand datatype
+ * \tparam     Out_t        Datatype of the accumulation output
  * \tparam     NumTotal     Total number of words in the input streams
  * \tparam     offset       Offset value for the accumulation
  *
@@ -740,15 +790,15 @@ void AddStreams(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls::stre
  *
  */
 template <unsigned int NumChannels,
-          typename In1_t,
-          typename In2_t,
+          typename In_t1,
+          typename In_t2,
           typename Out_t,
           unsigned int NumTotal,
           int offset = 0>
-void AddStreams_Batch(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls::stream<ap_uint<NumChannels * In2_t::width>> &in2,
-                hls::stream<ap_uint<NumChannels * Out_t::width>> &out, const unsigned int numReps) {
+void AddStreams_Batch(hls::stream<hls::vector<In_t1, NumChannels>> &in1, hls::stream<hls::vector<In_t2, NumChannels>> &in2,
+                hls::stream<hls::vector<Out_t, NumChannels>> &out, const unsigned int numReps) {
   for (unsigned int image = 0; image < numReps; image++) {
-    AddStreams<NumChannels, In1_t, In2_t, Out_t, NumTotal, offset>(in1, in2, out);
+    AddStreams<NumChannels, In_t1, In_t2, Out_t, NumTotal, offset>(in1, in2, out);
   }
 }
 
@@ -771,23 +821,24 @@ void AddStreams_Batch(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls
  *
  */
 template <unsigned int NumChannels,
-          typename In1_t,
-          typename In2_t,
+          typename In_t1,
+          typename In_t2,
           typename Out_t,
           unsigned int NumTotal,
           unsigned int PECount, 
           int offset = 0>
-void AddStreamsLayer_Batch(hls::stream<ap_uint<NumChannels * In1_t::width>> &in1, hls::stream<ap_uint<NumChannels * In2_t::width>> &in2,
-                           hls::stream<ap_uint<NumChannels * Out_t::width>> &out, const unsigned int numReps) {
+void AddStreamsLayer_Batch(hls::stream<hls::vector<In_t1, NumChannels>> &in1, hls::stream<hls::vector<In_t2, NumChannels>> &in2,
+                           hls::stream<hls::vector<Out_t, NumChannels>> &out, const unsigned int numReps) {
 #pragma HLS INLINE
   static_assert(NumChannels % PECount == 0, "");
-  hls::stream<ap_uint<PECount * In1_t::width>> in_folded1;
-  hls::stream<ap_uint<PECount * In2_t::width>> in_folded2;
-  hls::stream<ap_uint<PECount * Out_t::width>> out_folded;
-  StreamingDataWidthConverter_Batch<NumChannels * In1_t::width, PECount * In1_t::width, NumTotal>(in1, in_folded1, numReps);
-  StreamingDataWidthConverter_Batch<NumChannels * In2_t::width, PECount * In2_t::width, NumTotal>(in2, in_folded2, numReps);
-  AddStreams_Batch<PECount, In1_t, In2_t, Out_t, NumTotal *(NumChannels / PECount),offset>(in_folded1, in_folded2, out_folded, numReps);
-  StreamingDataWidthConverter_Batch<PECount * Out_t::width, NumChannels * Out_t::width, NumTotal *(NumChannels / PECount)>(out_folded, out, numReps);
+  hls::stream<hls::vector<In_t1, PECount>> in_folded1;
+  hls::stream<hls::vector<In_t2, PECount>> in_folded2;
+  hls::stream<hls::vector<Out_t, PECount>> out_folded;
+
+  StreamingDataWidthConverter_Batch<NumTotal, NumChannels, PECount>(in1, in_folded1, numReps);
+  StreamingDataWidthConverter_Batch<NumTotal, NumChannels, PECount>(in2, in_folded2, numReps);
+  AddStreams_Batch<PECount, In_t1, In_t2, Out_t, NumTotal *(NumChannels / PECount),offset>(in_folded1, in_folded2, out_folded, numReps);
+  StreamingDataWidthConverter_Batch<NumTotal, PECount, NumChannels>(out_folded, out, numReps);
 }
 
 
@@ -1026,13 +1077,15 @@ template<unsigned W, unsigned N>
  * \param      numReps      Number of frames / images
  *
  */
-template<unsigned int DataWidth, unsigned int NumTotal>
-void Qdma2Stream_Batch(hls::stream<qdma_axis<DataWidth,0,0,0> > & in, hls::stream<ap_uint<DataWidth> > & out, const unsigned int numReps){
+template<typename T, unsigned int DataWidth, unsigned int NumTotal>
+void Qdma2Stream_Batch(hls::stream<qdma_axis<DataWidth,0,0,0> > & in, hls::stream<T> & out, const unsigned int numReps){
 	//TODO: static_assert to ensure DataWidth is power of 2 between 8 and 512
 	for (unsigned int image = 0; image < numReps; image++) {
 		for (unsigned int word = 0; word < NumTotal; word++) {
 #pragma HLS pipeline style=flp II=1
-			out.write(in.read().get_data());
+      T outVal;
+      outVal = in.read().get_data();
+      out.write(outVal);
 		}
 	}
 }
@@ -1040,7 +1093,7 @@ void Qdma2Stream_Batch(hls::stream<qdma_axis<DataWidth,0,0,0> > & in, hls::strea
 /**
  * \brief   Normal stream to QDMA stream conversion - Reads in a stream and outputs a QDMA stream including metadata (TLAST, TKEEP)
  *
- * Used as an adapter when connecting blocks through top-level Vitis streams (kernel to kernel or host to plaform streaming)
+ * Used as an adapter when connecting blocks through top-level Vitis streams (kernel to kernel or host to platform streaming)
  *
  * \tparam     DataWidth    Width, in number of bits, of the data on streams
  * \tparam     NumTotal     Total number of words in the input stream
@@ -1050,16 +1103,20 @@ void Qdma2Stream_Batch(hls::stream<qdma_axis<DataWidth,0,0,0> > & in, hls::strea
  * \param      numReps      Number of frames / images
  *
  */
-template<unsigned int DataWidth, unsigned int NumTotal>
-void Stream2Qdma_Batch(hls::stream<ap_uint<DataWidth> > & in, hls::stream<qdma_axis<DataWidth,0,0,0> > & out, const unsigned int numReps){
+template<typename T, unsigned int DataWidth, unsigned int NumTotal>
+void Stream2Qdma_Batch(hls::stream<T> & in, hls::stream<qdma_axis<DataWidth,0,0,0> > & out, const unsigned int numReps){
 	for (unsigned int image = 0; image < numReps; image++) {
 		for (unsigned int word = 0; word < NumTotal; word++) {
-#pragma HLS pipeline style=flp II=1
-			qdma_axis<DataWidth,0,0,0> temp;
-			temp.set_data(in.read());
-			temp.set_keep(-1);
-			temp.set_last(word == NumTotal-1);
-			out.write(temp);
+      #pragma HLS pipeline style=flp II=1
+      qdma_axis<DataWidth,0,0,0> temp;
+
+      T inVal;
+      inVal = in.read();
+      temp.set_data(inVal);
+
+      temp.set_keep(-1);
+      temp.set_last(word == NumTotal-1);
+      out.write(temp);
 		}
 	}
 }
