@@ -56,7 +56,7 @@ using namespace hls;
 using namespace std;
 
 constexpr unsigned MAX_IMAGES = 1;
-using T = ap_uint<8>; 
+using T = ap_uint<8>;
 constexpr unsigned NUM_WORDS_IN_TMP = 20;
 //constexpr unsigned NI = 8; // 8,8,4
 //constexpr unsigned NO = 8; // 8,4,8
