@@ -761,7 +761,7 @@ void StreamingDataWidthConverterNoMultiple(
  *
  * Used to generate the inputs to the bypass and convolutional branches in Resnet-50
  *
- * \tparam     DataWidth    Width, in number of bits, of the streams
+ * \tparam     T            Datatype of the streams
  * \tparam     NumTotal     Total number of words in the input stream
  *
  * \param      in           Input stream
@@ -788,7 +788,7 @@ void DuplicateStreams(hls::stream<T> & in, hls::stream<T> & out1,
  *
  * Used to generate the inputs to the bypass and convolutional branches in Resnet-50 when dealing with multiple 'frames'
  *
- * \tparam     DataWidth    Width, in number of bits, of the streams
+ * \tparam     T            Datatype of the streams
  * \tparam     NumTotal     Total number of words in the input stream
  *
  * \param      in           Input stream
